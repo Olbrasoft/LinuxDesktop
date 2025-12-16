@@ -126,23 +126,35 @@ public class WindowCallsService : IWindowService, IAsyncDisposable
 
     private async Task<string> CallMethodWithArgReturningStringAsync(string method, uint arg)
     {
-        var message = CreateMethodCall(method, writer => writer.WriteUInt32(arg), "u");
+        var writer = _connection.GetMessageWriter();
+        writer.WriteMethodCallHeader(
+            destination: ServiceName,
+            path: ObjectPath,
+            @interface: Interface,
+            member: method,
+            signature: "u");
+        writer.WriteUInt32(arg);
+        var message = writer.CreateMessage();
+
         return await _connection.CallMethodAsync(message, ReadString, this);
     }
 
     private async Task CallMethodWithArgAsync(string method, uint arg)
     {
-        var message = CreateMethodCall(method, writer => writer.WriteUInt32(arg), "u");
+        var writer = _connection.GetMessageWriter();
+        writer.WriteMethodCallHeader(
+            destination: ServiceName,
+            path: ObjectPath,
+            @interface: Interface,
+            member: method,
+            signature: "u");
+        writer.WriteUInt32(arg);
+        var message = writer.CreateMessage();
+
         await _connection.CallMethodAsync(message);
     }
 
     private async Task CallMethodAsync(string method, Action<MessageWriter> writeArgs, string signature)
-    {
-        var message = CreateMethodCall(method, writeArgs, signature);
-        await _connection.CallMethodAsync(message);
-    }
-
-    private MessageBuffer CreateMethodCall(string method, Action<MessageWriter>? writeArgs = null, string? signature = null)
     {
         var writer = _connection.GetMessageWriter();
         writer.WriteMethodCallHeader(
@@ -151,7 +163,20 @@ public class WindowCallsService : IWindowService, IAsyncDisposable
             @interface: Interface,
             member: method,
             signature: signature);
-        writeArgs?.Invoke(writer);
+        writeArgs(writer);
+        var message = writer.CreateMessage();
+
+        await _connection.CallMethodAsync(message);
+    }
+
+    private MessageBuffer CreateMethodCall(string method)
+    {
+        var writer = _connection.GetMessageWriter();
+        writer.WriteMethodCallHeader(
+            destination: ServiceName,
+            path: ObjectPath,
+            @interface: Interface,
+            member: method);
         return writer.CreateMessage();
     }
 

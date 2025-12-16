@@ -32,22 +32,55 @@ try
 
     Console.WriteLine();
 
-    // Get details of focused window
-    var focusedWindow = await windowService.GetFocusedWindowAsync();
+    // Get details of focused window (use already fetched data)
+    var focusedWindow = windows.FirstOrDefault(w => w.HasFocus);
     if (focusedWindow != null)
     {
         Console.WriteLine("3. Focused window details:");
+        Console.WriteLine($"   Window ID: {focusedWindow.Id}");
+
+        // Print what we already know from the list
+        Console.WriteLine($"   Title: {focusedWindow.Title}");
+        Console.WriteLine($"   Class: {focusedWindow.WmClass}");
+        Console.WriteLine($"   PID: {focusedWindow.Pid}");
+        Console.WriteLine($"   In current workspace: {focusedWindow.InCurrentWorkspace}");
+
+        // Try to get more details
+        Console.WriteLine("\n   Fetching extended details...");
         var details = await windowService.GetWindowDetailsAsync(focusedWindow.Id);
         if (details != null)
         {
-            Console.WriteLine($"   Title: {details.Title}");
-            Console.WriteLine($"   Class: {details.WmClass}");
-            Console.WriteLine($"   PID: {details.Pid}");
             Console.WriteLine($"   Position: ({details.X}, {details.Y})");
             Console.WriteLine($"   Size: {details.Width}x{details.Height}");
             Console.WriteLine($"   Monitor: {details.Monitor}");
             Console.WriteLine($"   Can close: {details.CanClose}");
             Console.WriteLine($"   Maximized: {details.Maximized}");
+        }
+        else
+        {
+            Console.WriteLine("   (Extended details not available)");
+        }
+
+        // Test GetTitle separately
+        Console.WriteLine("\n4. Testing GetTitle method...");
+        var title = await windowService.GetWindowTitleAsync(focusedWindow.Id);
+        Console.WriteLine($"   Title via GetTitle: {title}");
+
+        // Test GetFocusedWindow helper
+        Console.WriteLine("\n5. Testing GetFocusedWindow helper...");
+        var focused = await windowService.GetFocusedWindowAsync();
+        Console.WriteLine($"   Focused window via helper: {focused?.WmClass} - {focused?.Title?.Truncate(40)}");
+    }
+
+    // Test with a different window (not focused)
+    var otherWindow = windows.FirstOrDefault(w => !w.HasFocus && w.WmClass != null && w.WmClass != "conky");
+    if (otherWindow != null)
+    {
+        Console.WriteLine($"\n6. Testing with non-focused window (ID: {otherWindow.Id})...");
+        var otherDetails = await windowService.GetWindowDetailsAsync(otherWindow.Id);
+        if (otherDetails != null)
+        {
+            Console.WriteLine($"   {otherWindow.WmClass}: {otherDetails.Width}x{otherDetails.Height}");
         }
     }
 
