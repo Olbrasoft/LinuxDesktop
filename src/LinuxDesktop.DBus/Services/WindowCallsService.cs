@@ -9,7 +9,7 @@ namespace Olbrasoft.LinuxDesktop.DBus.Services;
 /// Window service implementation using GNOME Shell "Window Calls" extension via D-Bus.
 /// Requires: https://extensions.gnome.org/extension/4724/window-calls/
 /// </summary>
-public class WindowCallsService : IWindowService, IAsyncDisposable
+public class WindowCallsService : IWindowService, IWorkspaceService, IAsyncDisposable
 {
     private const string ServiceName = "org.gnome.Shell";
     private const string ObjectPath = "/org/gnome/Shell/Extensions/Windows";
@@ -118,6 +118,43 @@ public class WindowCallsService : IWindowService, IAsyncDisposable
         }, "uu");
     }
 
+    // IWorkspaceService implementation
+
+    public async Task<IReadOnlyList<WorkspaceInfo>> GetWorkspacesAsync(CancellationToken cancellationToken = default)
+    {
+        var json = await CallMethodReturningStringAsync("GetWorkspaces");
+        if (string.IsNullOrEmpty(json))
+            return Array.Empty<WorkspaceInfo>();
+
+        return ParseWorkspaceList(json);
+    }
+
+    public async Task<int> GetWorkspaceCountAsync(CancellationToken cancellationToken = default)
+    {
+        var message = CreateMethodCall("GetWorkspaceCount");
+        return await _connection.CallMethodAsync(message, ReadUInt32, this);
+    }
+
+    public async Task<int> GetActiveWorkspaceAsync(CancellationToken cancellationToken = default)
+    {
+        var message = CreateMethodCall("GetActiveWorkspace");
+        return await _connection.CallMethodAsync(message, ReadUInt32, this);
+    }
+
+    public async Task SwitchWorkspaceAsync(int index, CancellationToken cancellationToken = default)
+    {
+        await CallMethodWithArgAsync("SwitchWorkspace", (uint)index);
+    }
+
+    public async Task<IReadOnlyList<WindowInfo>> GetWorkspaceWindowsAsync(int index, CancellationToken cancellationToken = default)
+    {
+        var json = await CallMethodWithArgReturningStringAsync("GetWorkspaceWindows", (uint)index);
+        if (string.IsNullOrEmpty(json))
+            return Array.Empty<WindowInfo>();
+
+        return ParseWindowList(json);
+    }
+
     private async Task<string> CallMethodReturningStringAsync(string method)
     {
         var message = CreateMethodCall(method);
@@ -186,6 +223,12 @@ public class WindowCallsService : IWindowService, IAsyncDisposable
         return reader.ReadString();
     }
 
+    private static int ReadUInt32(Message message, object? state)
+    {
+        var reader = message.GetBodyReader();
+        return (int)reader.ReadUInt32();
+    }
+
     private static IReadOnlyList<WindowInfo> ParseWindowList(string json)
     {
         try
@@ -211,6 +254,20 @@ public class WindowCallsService : IWindowService, IAsyncDisposable
         catch (JsonException)
         {
             return null;
+        }
+    }
+
+    private static IReadOnlyList<WorkspaceInfo> ParseWorkspaceList(string json)
+    {
+        try
+        {
+            var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+            var workspaces = JsonSerializer.Deserialize<List<JsonWorkspaceInfo>>(json, options);
+            return workspaces?.Select(w => w.ToWorkspaceInfo()).ToList() ?? new List<WorkspaceInfo>();
+        }
+        catch (JsonException)
+        {
+            return Array.Empty<WorkspaceInfo>();
         }
     }
 
@@ -289,6 +346,20 @@ public class WindowCallsService : IWindowService, IAsyncDisposable
             CanMinimize = Canminimize,
             IsMoveable = Moveable,
             IsResizeable = Resizeable
+        };
+    }
+
+    private class JsonWorkspaceInfo
+    {
+        public int Index { get; set; }
+        public bool Active { get; set; }
+        public int Windows { get; set; }
+
+        public WorkspaceInfo ToWorkspaceInfo() => new()
+        {
+            Index = Index,
+            IsActive = Active,
+            WindowCount = Windows
         };
     }
 }
