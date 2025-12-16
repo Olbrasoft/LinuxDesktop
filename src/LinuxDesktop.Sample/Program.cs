@@ -84,6 +84,28 @@ try
         }
     }
 
+    // Test Workspace methods
+    Console.WriteLine("\n7. Testing Workspace methods...");
+    var workspaceCount = await windowService.GetWorkspaceCountAsync();
+    var activeWorkspace = await windowService.GetActiveWorkspaceAsync();
+    Console.WriteLine($"   Workspace count: {workspaceCount}");
+    Console.WriteLine($"   Active workspace: {activeWorkspace}");
+
+    Console.WriteLine("\n8. Testing GetWorkspaces...");
+    var workspaces = await windowService.GetWorkspacesAsync();
+    foreach (var ws in workspaces)
+    {
+        var activeMarker = ws.IsActive ? " [ACTIVE]" : "";
+        Console.WriteLine($"   Workspace {ws.Index}: {ws.WindowCount} windows{activeMarker}");
+    }
+
+    Console.WriteLine("\n9. Testing GetWorkspaceWindows (workspace 0)...");
+    var ws0Windows = await windowService.GetWorkspaceWindowsAsync(0);
+    foreach (var w in ws0Windows.Take(5))
+    {
+        Console.WriteLine($"   [{w.Id}] {w.WmClass}: {w.Title?.Truncate(40)}");
+    }
+
     Console.WriteLine("\nDemo completed successfully!");
 }
 catch (DBusException ex)
