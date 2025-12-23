@@ -290,6 +290,141 @@ AT-SPI **fully supports Wayland** with no modifications required. The .NET PoC s
 
 ---
 
-**Document Version:** 1.0
+## 10. Phase 2 Findings (Issue #15 - PoC Update)
+
+### 10.1 Tmds.DBus.Protocol Limitations Discovered
+
+**Critical finding:** Tmds.DBus.Protocol is a **low-level API** without built-in async signal listening support.
+
+#### Challenges Identified:
+
+1. **No async message reading API**
+   - No `ReadMessageAsync()` method
+   - No `IAsyncEnumerable<Message>` stream
+   - Requires using `ReceiveMessages` callback pattern
+
+2. **Internal API access required**
+   - MessageStream is internal - not publicly accessible
+   - Reflection-based access is brittle and version-dependent
+   - No documented public API for signal subscriptions
+
+3. **Callback-based pattern only**
+   ```csharp
+   // Tmds.DBus.Protocol approach - requires internal MessageStream access
+   messageStream.ReceiveMessages((Exception? ex, Message msg, object? state) => {
+       // Handle message synchronously in callback
+   }, state);
+   ```
+
+#### Tested Approaches:
+
+❌ **Reflection to access MessageStream** - Field name changed or doesn't exist
+❌ **Async polling with timeout** - No suitable async read method available
+❌ **Direct stream reading** - Too low-level, requires manual protocol parsing
+
+### 10.2 Recommended Solution for Production
+
+**Use higher-level D-Bus library** or create **custom wrapper abstraction**:
+
+#### Option A: Use Tmds.DBus (higher-level package)
+- More user-friendly API
+- Built-in proxy generation
+- Signal subscription support
+- **Trade-off:** Larger dependency, more overhead
+
+#### Option B: Create custom AT-SPI wrapper
+- Wraps Tmds.DBus.Protocol
+- Provides async-friendly API
+- Hides D-Bus complexity
+- **Implementation in Phase 3/4**
+
+### 10.3 Working Code (Proof of Connection)
+
+What **DOES work** from Phase 1 & 2:
+
+✅ **Getting accessibility bus address**
+```csharp
+var sessionBus = new Connection(Address.Session!);
+await sessionBus.ConnectAsync();
+var writer = sessionBus.GetMessageWriter();
+writer.WriteMethodCallHeader(
+    destination: "org.a11y.Bus",
+    path: "/org/a11y/bus",
+    @interface: "org.a11y.Bus",
+    member: "GetAddress");
+var busAddress = await sessionBus.CallMethodAsync(writer.CreateMessage(), ...);
+```
+
+✅ **Connecting to accessibility bus**
+```csharp
+var a11yBus = new Connection(busAddress);
+await a11yBus.ConnectAsync();
+```
+
+✅ **Registering match rules for signals**
+```csharp
+var matchRule = "type='signal',interface='org.a11y.atspi.Event.Focus',member='Focus'";
+var writer = a11yBus.GetMessageWriter();
+writer.WriteMethodCallHeader(
+    destination: "org.freedesktop.DBus",
+    path: "/org/freedesktop/DBus",
+    @interface: "org.freedesktop.DBus",
+    signature: "s",
+    member: "AddMatch");
+writer.WriteString(matchRule);
+await a11yBus.CallMethodAsync(writer.CreateMessage());
+```
+
+✅ **Querying accessible object properties**
+```csharp
+var nameWriter = bus.GetMessageWriter();
+nameWriter.WriteMethodCallHeader(
+    destination: sender,
+    path: path,
+    @interface: "org.freedesktop.DBus.Properties",
+    signature: "ss",
+    member: "Get");
+nameWriter.WriteString("org.a11y.atspi.Accessible");
+nameWriter.WriteString("Name");
+var name = await bus.CallMethodAsync(nameWriter.CreateMessage(), ...);
+```
+
+### 10.4 Next Steps (Phase 3 - Issue #16)
+
+1. **Evaluate Tmds.DBus (higher-level)** - Test if it provides better signal handling
+2. **Design IAccessibilityService interface** - Clean C# API abstracting D-Bus
+3. **Implement wrapper service** - Hide D-Bus complexity
+4. **Create AsyncEnumerable adapter** - Convert callbacks to IAsyncEnumerable<FocusEvent>
+
+### 10.5 Architectural Decision
+
+**Recommendation:** Create `LinuxDesktop.Accessibility` project with clean abstraction:
+
+```csharp
+// Public API - no D-Bus exposure
+public interface IAccessibilityService
+{
+    Task<AccessibleWidget?> GetFocusedWidgetAsync(CancellationToken ct = default);
+    IAsyncEnumerable<FocusChangedEvent> WatchFocusChangesAsync(CancellationToken ct);
+}
+
+public record AccessibleWidget(
+    string Name,
+    AccessibleRole Role,
+    string ApplicationName,
+    string? Description);
+
+public record FocusChangedEvent(
+    AccessibleWidget Widget,
+    DateTimeOffset Timestamp);
+```
+
+**Implementation:** Use Tmds.DBus or create custom D-Bus wrapper internally.
+
+---
+
+**Document Version:** 1.1
 **Last Updated:** 2024-12-24
-**Author:** Phase 1 analysis for Issue #14
+**Updates:**
+- Phase 1 (Issue #14): Initial Wayland analysis - COMPLETED
+- Phase 2 (Issue #15): PoC implementation findings - COMPLETED
