@@ -26,8 +26,8 @@ jobs:
     - name: Stop Services
       run: |
         echo "⏹️  Stopping Desktop Monitor services..."
-        systemctl --user stop desktop-monitor-grpc.service || true
-        systemctl --user stop desktop-monitor-web.service || true
+        pkill -f "LinuxDesktop.Monitor.GrpcService" || true
+        pkill -f "LinuxDesktop.Monitor.Web" || true
         sleep 2
         echo "✅ Services stopped"
 
@@ -62,15 +62,19 @@ jobs:
 
     - name: Start Services
       run: |
-        echo "🔄 Restarting Desktop Monitor services..."
-        systemctl --user restart desktop-monitor-grpc.service
-        systemctl --user restart desktop-monitor-web.service
-        echo "✅ Services restarted"
+        echo "🔄 Starting Desktop Monitor services..."
+        export XDG_RUNTIME_DIR=/run/user/1000
+        export DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus
+        systemctl --user start desktop-monitor-grpc.service
+        systemctl --user start desktop-monitor-web.service
+        echo "✅ Services started"
 
     - name: Verify Services
       run: |
         echo "📊 Verifying services are running..."
         sleep 2
+        export XDG_RUNTIME_DIR=/run/user/1000
+        export DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus
         if systemctl --user is-active --quiet desktop-monitor-grpc.service; then
           echo "✅ gRPC service is running (port 5054)"
         else
