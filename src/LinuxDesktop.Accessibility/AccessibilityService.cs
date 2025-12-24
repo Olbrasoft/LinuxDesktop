@@ -1,6 +1,8 @@
 using System.Runtime.CompilerServices;
 using System.Threading.Channels;
+using Tmds.DBus;
 using Tmds.DBus.Protocol;
+using GLib;
 
 namespace Olbrasoft.LinuxDesktop.Accessibility;
 
@@ -9,15 +11,20 @@ namespace Olbrasoft.LinuxDesktop.Accessibility;
 /// </summary>
 public class AccessibilityService : IAccessibilityService
 {
-    private readonly Connection _sessionBus;
-    private Connection? _accessibilityBus;
+    private Tmds.DBus.Protocol.Connection? _protocolConnection;
+    private Tmds.DBus.Connection? _proxyConnection;
+    private string? _accessibilityBusAddress;
     private bool _disposed;
     private readonly SemaphoreSlim _initLock = new(1, 1);
     private bool _initialized;
 
+    // GLib MainLoop for D-Bus event processing
+    private MainLoop? _mainLoop;
+    private System.Threading.Thread? _mainLoopThread;
+    private readonly CancellationTokenSource _mainLoopCts = new();
+
     public AccessibilityService()
     {
-        _sessionBus = new Connection(Address.Session!);
     }
 
     /// <summary>
@@ -38,25 +45,32 @@ public class AccessibilityService : IAccessibilityService
             if (_initialized)
                 return;
 
-            // Connect to session bus
-            await _sessionBus.ConnectAsync();
+            // Get accessibility bus address from session bus
+            var sessionConnection = new Tmds.DBus.Connection(Tmds.DBus.Protocol.Address.Session!);
+            await sessionConnection.ConnectAsync();
 
-            // Get accessibility bus address
-            var writer = _sessionBus.GetMessageWriter();
-            writer.WriteMethodCallHeader(
-                destination: "org.a11y.Bus",
-                path: "/org/a11y/bus",
-                @interface: "org.a11y.Bus",
-                member: "GetAddress");
+            try
+            {
+                var a11yBus = sessionConnection.CreateProxy<IAccessibilityBus>("org.a11y.Bus", "/org/a11y/bus");
+                _accessibilityBusAddress = await a11yBus.GetAddressAsync();
+            }
+            finally
+            {
+                sessionConnection.Dispose();
+            }
 
-            var busAddress = await _sessionBus.CallMethodAsync(
-                writer.CreateMessage(),
-                (Message msg, object? state) => msg.GetBodyReader().ReadString(),
-                null);
+            // Connect to accessibility bus with both Protocol and proxy connections
+            _protocolConnection = new Tmds.DBus.Protocol.Connection(_accessibilityBusAddress);
+            await _protocolConnection.ConnectAsync();
 
-            // Connect to accessibility bus
-            _accessibilityBus = new Connection(busAddress);
-            await _accessibilityBus.ConnectAsync();
+            _proxyConnection = new Tmds.DBus.Connection(_accessibilityBusAddress);
+            await _proxyConnection.ConnectAsync();
+
+            // Register with AT-SPI Registry to receive events
+            await RegisterWithRegistryAsync();
+
+            // Start GLib main loop to process D-Bus events
+            StartMainLoop();
 
             _initialized = true;
         }
@@ -64,6 +78,58 @@ public class AccessibilityService : IAccessibilityService
         {
             _initLock.Release();
         }
+    }
+
+    private void StartMainLoop()
+    {
+        _mainLoopThread = new System.Threading.Thread(() =>
+        {
+            try
+            {
+                // Create main loop in this thread (GLib requires per-thread context)
+                var context = MainContext.Default();
+
+                _mainLoop = MainLoop.New(context, false);
+
+                // Run with SynchronizationContext - this sets up MainLoopSynchronizationContext
+                // which allows D-Bus callbacks to be marshalled correctly
+                _mainLoop.RunWithSynchronizationContext();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"MainLoop error: {ex}");
+            }
+        })
+        {
+            IsBackground = true,
+            Name = "GLib.MainLoop"
+        };
+        _mainLoopThread.Start();
+
+        // Give the main loop time to start
+        System.Threading.Thread.Sleep(200);
+    }
+
+    private async Task RegisterWithRegistryAsync()
+    {
+        if (_protocolConnection == null)
+            throw new InvalidOperationException("Protocol connection not initialized");
+
+        // Call org.a11y.atspi.Registry.RegisterEvent
+        var writer = _protocolConnection.GetMessageWriter();
+        writer.WriteMethodCallHeader(
+            destination: "org.a11y.atspi.Registry",
+            path: "/org/a11y/atspi/registry",
+            @interface: "org.a11y.atspi.Registry",
+            signature: "sasas",
+            member: "RegisterEvent");
+
+        // Register for state-changed:focused events
+        writer.WriteString("object:state-changed:focused");
+        writer.WriteArray(System.Array.Empty<string>());  // properties
+        writer.WriteArray(new[] { _protocolConnection.UniqueName! });  // app_bus_name
+
+        await _protocolConnection.CallMethodAsync(writer.CreateMessage());
     }
 
     private async Task EnsureInitializedAsync(CancellationToken cancellationToken)
@@ -79,12 +145,7 @@ public class AccessibilityService : IAccessibilityService
         await EnsureInitializedAsync(cancellationToken);
 
         // Note: AT-SPI doesn't have a "get currently focused widget" method
-        // We would need to:
-        // 1. Query all applications via Registry
-        // 2. Ask each for focused widget
-        // 3. Find which one reports focus
-        // This is complex and not commonly needed - focus watching is the primary use case
-
+        // We would need to query all applications - use WatchFocusChangesAsync instead
         throw new NotImplementedException(
             "Getting current focused widget requires querying all applications. " +
             "Use WatchFocusChangesAsync() to monitor focus changes instead.");
@@ -95,35 +156,105 @@ public class AccessibilityService : IAccessibilityService
     {
         await EnsureInitializedAsync(cancellationToken);
 
-        if (_accessibilityBus == null)
-            throw new InvalidOperationException("Accessibility bus not initialized");
+        if (_protocolConnection == null || _proxyConnection == null)
+            throw new InvalidOperationException("Connections not initialized");
 
-        // Register for focus events
-        var matchRule = "type='signal',interface='org.a11y.atspi.Event.Focus',member='Focus'";
-        var matchWriter = _accessibilityBus.GetMessageWriter();
-        matchWriter.WriteMethodCallHeader(
-            destination: "org.freedesktop.DBus",
-            path: "/org/freedesktop/DBus",
-            @interface: "org.freedesktop.DBus",
-            signature: "s",
-            member: "AddMatch");
-        matchWriter.WriteString(matchRule);
-        await _accessibilityBus.CallMethodAsync(matchWriter.CreateMessage());
-
-        // Create channel for events
         var channel = Channel.CreateUnbounded<FocusChangedEvent>();
 
-        // Note: Tmds.DBus.Protocol doesn't expose async message reading
-        // This is a known limitation from Phase 2 analysis
-        // For a production implementation, we would need to:
-        // 1. Use Tmds.DBus (higher-level library) instead
-        // 2. Or implement custom D-Bus message loop with System.IO.Pipelines
-        // 3. Or use reflection to access internal MessageStream (brittle)
+        // Create match rule for Object StateChanged signals
+        var matchRule = new MatchRule
+        {
+            Type = MessageType.Signal,
+            Interface = "org.a11y.atspi.Event.Object",
+            Member = "StateChanged"
+        };
 
-        // For now, signal completion immediately to indicate the limitation
-        channel.Writer.Complete(new NotImplementedException(
-            "Signal listening requires Tmds.DBus (higher-level library) or custom message loop. " +
-            "See AT-SPI-WAYLAND-ANALYSIS.md Phase 2 findings for details."));
+        try
+        {
+            // Subscribe to StateChanged signals with callback handler
+            // IMPORTANT: emitOnCapturedContext = true allows callbacks to run in GLib SynchronizationContext
+            var subscription = await _protocolConnection.AddMatchAsync<(string sender, string path, string detail)>(
+                matchRule,
+                (Message message, object? state) =>
+                {
+                    var sender = message.SenderAsString ?? "unknown";
+                    var path = message.PathAsString ?? "/";
+
+                    // StateChanged signal arguments: (detail: string, detail1: int, detail2: int, variant: any, properties: dict)
+                    var reader = message.GetBodyReader();
+                    var detail = reader.ReadString().ToString();
+
+                    return (sender, path, detail);
+                },
+                (Exception? ex, (string sender, string path, string detail) data, object? readerState, object? handlerState) =>
+                {
+                    if (ex != null)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Signal error: {ex.Message}");
+                        return;
+                    }
+
+                    // Only process "focused" state changes
+                    if (data.detail != "focused")
+                        return;
+
+                    // Fire and forget - handle signal processing asynchronously
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            // Query accessible object properties via proxy
+                            var accessible = _proxyConnection.CreateProxy<IAccessible>(data.sender, data.path);
+
+                            var name = await accessible.GetNameAsync();
+                            var roleId = await accessible.GetRoleAsync();
+                            var role = MapRole(roleId);
+
+                            // Get application name
+                            var (appSender, appPath) = await accessible.GetApplicationAsync();
+                            var app = _proxyConnection.CreateProxy<IAccessible>(appSender, appPath);
+                            var appName = await app.GetNameAsync();
+
+                            var widget = new AccessibleWidget(
+                                Name: name,
+                                Role: role,
+                                ApplicationName: appName,
+                                Description: null,
+                                ObjectPath: data.path
+                            );
+
+                            var focusEvent = new FocusChangedEvent(widget, DateTimeOffset.UtcNow);
+
+                            // Write to channel - handle cancellation gracefully
+                            if (!cancellationToken.IsCancellationRequested)
+                            {
+                                await channel.Writer.WriteAsync(focusEvent, cancellationToken);
+                            }
+                        }
+                        catch (Exception queryEx)
+                        {
+                            // Skip widgets we can't query - some may be transient or restricted
+                            System.Diagnostics.Debug.WriteLine($"Failed to query accessible: {queryEx.Message}");
+                        }
+                    }, cancellationToken);
+                },
+                Tmds.DBus.Protocol.ObserverFlags.None,
+                null,
+                null,
+                false  // Don't capture context - GLib MainLoop runs in background thread
+            );
+
+            // Cleanup when cancelled
+            cancellationToken.Register(() =>
+            {
+                subscription.Dispose();
+                channel.Writer.TryComplete();
+            });
+        }
+        catch (Exception ex)
+        {
+            channel.Writer.TryComplete(ex);
+        }
 
         await foreach (var evt in channel.Reader.ReadAllAsync(cancellationToken))
         {
@@ -131,71 +262,16 @@ public class AccessibilityService : IAccessibilityService
         }
     }
 
-    private async Task<AccessibleWidget?> QueryAccessibleWidgetAsync(
-        string sender,
-        string objectPath,
-        CancellationToken cancellationToken)
+    private static AccessibleRole MapRole(int roleId)
     {
-        if (_accessibilityBus == null)
-            return null;
-
-        try
+        return roleId switch
         {
-            // Query Name property
-            var nameWriter = _accessibilityBus.GetMessageWriter();
-            nameWriter.WriteMethodCallHeader(
-                destination: sender,
-                path: objectPath,
-                @interface: "org.freedesktop.DBus.Properties",
-                signature: "ss",
-                member: "Get");
-            nameWriter.WriteString("org.a11y.atspi.Accessible");
-            nameWriter.WriteString("Name");
-
-            var name = await _accessibilityBus.CallMethodAsync(
-                nameWriter.CreateMessage(),
-                (Message msg, object? state) =>
-                {
-                    var reader = msg.GetBodyReader();
-                    reader.ReadSignature(); // variant signature
-                    return reader.ReadString();
-                },
-                null);
-
-            // Query Role property
-            var roleWriter = _accessibilityBus.GetMessageWriter();
-            roleWriter.WriteMethodCallHeader(
-                destination: sender,
-                path: objectPath,
-                @interface: "org.freedesktop.DBus.Properties",
-                signature: "ss",
-                member: "Get");
-            roleWriter.WriteString("org.a11y.atspi.Accessible");
-            roleWriter.WriteString("Role");
-
-            var roleId = await _accessibilityBus.CallMethodAsync(
-                roleWriter.CreateMessage(),
-                (Message msg, object? state) =>
-                {
-                    var reader = msg.GetBodyReader();
-                    reader.ReadSignature();
-                    return reader.ReadUInt32();
-                },
-                null);
-
-            // Try to get application name (sender's bus name)
-            var appName = sender; // Fallback to bus name
-
-            return new AccessibleWidget(
-                Name: name,
-                Role: (AccessibleRole)roleId,
-                ApplicationName: appName,
-                ObjectPath: objectPath);
-        }
-        catch
-        {
-            return null;
-        }
+            79 => AccessibleRole.Entry,
+            60 => AccessibleRole.Terminal,
+            61 => AccessibleRole.Text,
+            43 => AccessibleRole.PushButton,
+            _ => AccessibleRole.Unknown
+        };
     }
 
     public async ValueTask DisposeAsync()
@@ -205,10 +281,32 @@ public class AccessibilityService : IAccessibilityService
 
         _disposed = true;
 
-        _accessibilityBus?.Dispose();
-        _sessionBus.Dispose();
+        // Stop GLib main loop
+        if (_mainLoop != null)
+        {
+            _mainLoop.Quit();
+        }
+
+        _mainLoopCts.Cancel();
+
+        // Wait for main loop thread to finish
+        if (_mainLoopThread != null && _mainLoopThread.IsAlive)
+        {
+            _mainLoopThread.Join(System.TimeSpan.FromSeconds(2));
+        }
+
+        _protocolConnection?.Dispose();
+        _proxyConnection?.Dispose();
         _initLock.Dispose();
+        _mainLoopCts.Dispose();
 
         await Task.CompletedTask;
     }
+}
+
+// D-Bus interface for org.a11y.Bus
+[DBusInterface("org.a11y.Bus")]
+public interface IAccessibilityBus : IDBusObject
+{
+    Task<string> GetAddressAsync();
 }
