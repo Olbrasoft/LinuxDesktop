@@ -156,13 +156,59 @@ if (state.ActiveApplication.Contains("terminator") &&
 }
 ```
 
+## Requirements
+
+### System Requirements
+
+- **GNOME Shell** (tested on 48.4)
+- **D-Bus session bus**
+- **.NET 10.0 SDK**
+- **Linux** (Debian 13 Trixie or compatible)
+
+### GNOME Shell Extension
+
+The gRPC service requires `focus-tracker@olbrasoft.cz` extension to be installed and enabled.
+
+**Installation:**
+```bash
+# Extension files should be at:
+~/.local/share/gnome-shell/extensions/focus-tracker@olbrasoft.cz/
+
+# Enable extension
+gnome-extensions enable focus-tracker@olbrasoft.cz
+
+# Verify extension is running
+gnome-extensions info focus-tracker@olbrasoft.cz
+
+# Verify D-Bus service is available
+busctl --user list | grep olbrasoft
+# Should show: org.olbrasoft.Desktop
+```
+
+For detailed extension documentation, see:
+```
+~/.local/share/gnome-shell/extensions/focus-tracker@olbrasoft.cz/README.md
+```
+
+### NuGet Packages
+
+The following packages are automatically restored during build:
+
+- **Grpc.AspNetCore** 2.64.0 - gRPC framework for ASP.NET Core
+- **Tmds.DBus** 0.22.0 - D-Bus client library for .NET
+- **System.Reactive** 6.1.0 - Reactive Extensions for observable state management
+
+No manual package installation required - `dotnet restore` handles everything.
+
 ## Dependencies
 
-- **GNOME Extension**: `focus-tracker@olbrasoft.cz` must be running
-- **D-Bus Service**: `org.olbrasoft.Desktop` at `/org/olbrasoft/Desktop`
-- **.NET 10.0**
-- **Tmds.DBus** - D-Bus client library
-- **System.Reactive** - Observable state management
+**Runtime dependencies:**
+- GNOME Extension: `focus-tracker@olbrasoft.cz` (must be running)
+- D-Bus Service: `org.olbrasoft.Desktop` at `/org/olbrasoft/Desktop`
+
+**Development dependencies:**
+- .NET 10.0 SDK
+- NuGet packages (listed above)
 
 ## Architecture
 

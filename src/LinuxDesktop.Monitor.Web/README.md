@@ -30,9 +30,49 @@ Web Browser (Real-time Dashboard)
 
 ## Requirements
 
-- GNOME Shell with `focus-tracker@olbrasoft.cz` extension enabled
-- .NET 10.0
-- D-Bus session bus access
+### System Requirements
+
+- **GNOME Shell** (tested on 48.4)
+- **D-Bus session bus**
+- **.NET 10.0 SDK**
+- **Linux** (Debian 13 Trixie or compatible)
+
+### GNOME Shell Extension
+
+The web dashboard requires `focus-tracker@olbrasoft.cz` extension to be installed and enabled.
+
+**Installation:**
+```bash
+# Extension files should be at:
+~/.local/share/gnome-shell/extensions/focus-tracker@olbrasoft.cz/
+
+# Enable extension
+gnome-extensions enable focus-tracker@olbrasoft.cz
+
+# Verify extension is running
+gnome-extensions info focus-tracker@olbrasoft.cz
+
+# Verify D-Bus service is available
+busctl --user list | grep olbrasoft
+# Should show: org.olbrasoft.Desktop
+```
+
+For detailed extension documentation, see:
+```
+~/.local/share/gnome-shell/extensions/focus-tracker@olbrasoft.cz/README.md
+```
+
+### NuGet Packages
+
+The following packages are automatically restored during build:
+
+- **Tmds.DBus** 0.22.0 - D-Bus client library for .NET
+- **Microsoft.AspNetCore.SignalR** (built-in with ASP.NET Core) - Real-time WebSocket communication
+
+**Project references:**
+- **LinuxDesktop.DBus** - Shared D-Bus abstractions
+
+No manual package installation required - `dotnet restore` handles everything.
 
 ## Installation
 
