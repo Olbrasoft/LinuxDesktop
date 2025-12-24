@@ -5,6 +5,9 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>Olbrasoft.LinuxDesktop.Monitor.GrpcService</RootNamespace>
+    <!-- Version is auto-calculated in CI/CD as 1.0.${{ github.run_number }} -->
+    <!-- This is fallback for local builds only -->
+    <Version>1.0.0-local</Version>
   </PropertyGroup>
 
   <ItemGroup>
