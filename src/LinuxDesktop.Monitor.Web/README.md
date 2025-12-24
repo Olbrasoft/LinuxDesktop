@@ -43,7 +43,7 @@ dotnet build src/LinuxDesktop.Monitor.Web/LinuxDesktop.Monitor.Web.csproj
 
 ## Usage
 
-### Start the server
+### Development
 
 ```bash
 cd ~/Olbrasoft/LinuxDesktop/src/LinuxDesktop.Monitor.Web
@@ -51,6 +51,46 @@ dotnet run
 ```
 
 The server will start on **port 5051** and listen on all network interfaces.
+
+### Production (systemd service)
+
+The application runs as a systemd user service.
+
+**Service management:**
+```bash
+# Check status
+systemctl --user status desktop-monitor-web.service
+
+# Start service
+systemctl --user start desktop-monitor-web.service
+
+# Stop service
+systemctl --user stop desktop-monitor-web.service
+
+# Restart service
+systemctl --user restart desktop-monitor-web.service
+
+# View logs
+journalctl --user -u desktop-monitor-web.service -f
+
+# View recent logs
+journalctl --user -u desktop-monitor-web.service -n 50
+```
+
+**Deployment path:**
+- Binaries: `/opt/olbrasoft/desktop-monitor-web/app/`
+- Service file: `~/.config/systemd/user/desktop-monitor-web.service`
+
+**Manual deployment:**
+```bash
+# Publish to deployment directory
+cd ~/Olbrasoft/LinuxDesktop
+dotnet publish src/LinuxDesktop.Monitor.Web/LinuxDesktop.Monitor.Web.csproj \
+  -c Release -o /opt/olbrasoft/desktop-monitor-web/app --no-self-contained
+
+# Restart service
+systemctl --user restart desktop-monitor-web.service
+```
 
 ### Access the dashboard
 
