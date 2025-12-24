@@ -23,6 +23,14 @@ jobs:
         echo "version=$VERSION" >> $GITHUB_OUTPUT
         echo "Deploying version: $VERSION"
 
+    - name: Stop Services
+      run: |
+        echo "⏹️  Stopping Desktop Monitor services..."
+        systemctl --user stop desktop-monitor-grpc.service || true
+        systemctl --user stop desktop-monitor-web.service || true
+        sleep 2
+        echo "✅ Services stopped"
+
     - name: Deploy gRPC Service
       env:
         DOTNET_ROOT: /home/jirka/.dotnet
@@ -52,7 +60,7 @@ jobs:
           --no-self-contained
         echo "✅ Web dashboard deployed"
 
-    - name: Restart Services
+    - name: Start Services
       run: |
         echo "🔄 Restarting Desktop Monitor services..."
         systemctl --user restart desktop-monitor-grpc.service
