@@ -17,6 +17,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LinuxDesktop.Core.Tests", "
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LinuxDesktop.DBus.Tests", "tests\LinuxDesktop.DBus.Tests\LinuxDesktop.DBus.Tests.csproj", "{4822B100-8E71-43E4-92AC-26047BA42ADA}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LinuxDesktop.Accessibility", "src\LinuxDesktop.Accessibility\LinuxDesktop.Accessibility.csproj", "{0EE84057-1701-4198-8435-9252099B6421}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -87,6 +89,18 @@ Global
 		{4822B100-8E71-43E4-92AC-26047BA42ADA}.Release|x64.Build.0 = Release|Any CPU
 		{4822B100-8E71-43E4-92AC-26047BA42ADA}.Release|x86.ActiveCfg = Release|Any CPU
 		{4822B100-8E71-43E4-92AC-26047BA42ADA}.Release|x86.Build.0 = Release|Any CPU
+		{0EE84057-1701-4198-8435-9252099B6421}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0EE84057-1701-4198-8435-9252099B6421}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0EE84057-1701-4198-8435-9252099B6421}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{0EE84057-1701-4198-8435-9252099B6421}.Debug|x64.Build.0 = Debug|Any CPU
+		{0EE84057-1701-4198-8435-9252099B6421}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{0EE84057-1701-4198-8435-9252099B6421}.Debug|x86.Build.0 = Debug|Any CPU
+		{0EE84057-1701-4198-8435-9252099B6421}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0EE84057-1701-4198-8435-9252099B6421}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0EE84057-1701-4198-8435-9252099B6421}.Release|x64.ActiveCfg = Release|Any CPU
+		{0EE84057-1701-4198-8435-9252099B6421}.Release|x64.Build.0 = Release|Any CPU
+		{0EE84057-1701-4198-8435-9252099B6421}.Release|x86.ActiveCfg = Release|Any CPU
+		{0EE84057-1701-4198-8435-9252099B6421}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -97,5 +111,6 @@ Global
 		{0D592D04-E8E2-416F-B62A-8AE4D4F311E8} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{FF1CF450-D923-4A3B-8A1D-9C0EDD681959} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{4822B100-8E71-43E4-92AC-26047BA42ADA} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{0EE84057-1701-4198-8435-9252099B6421} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 	EndGlobalSection
 EndGlobal
