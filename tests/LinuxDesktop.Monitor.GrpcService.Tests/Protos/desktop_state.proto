@@ -1,0 +1,51 @@
+syntax = "proto3";
+
+option csharp_namespace = "Olbrasoft.LinuxDesktop.Monitor.GrpcService";
+
+package desktopstate;
+
+// Desktop State Service - provides real-time desktop state monitoring
+service DesktopStateService {
+  // Get current desktop state (one-time query)
+  rpc GetState (StateRequest) returns (DesktopState);
+
+  // Stream desktop state changes (real-time updates)
+  rpc StreamState (StreamRequest) returns (stream DesktopStateChange);
+}
+
+message StateRequest {}
+
+message StreamRequest {}
+
+message DesktopState {
+  int32 current_workspace = 1;
+  int32 total_workspaces = 2;
+  string active_window = 3;
+  string active_application = 4;
+  int64 timestamp_unix = 5;
+}
+
+message DesktopStateChange {
+  ChangeType type = 1;
+  DesktopState current_state = 2;
+  WorkspaceChangedEvent workspace_event = 3;
+  FocusChangedEvent focus_event = 4;
+  int64 timestamp_unix = 5;
+}
+
+enum ChangeType {
+  UNKNOWN = 0;
+  WORKSPACE_CHANGED = 1;
+  FOCUS_CHANGED = 2;
+}
+
+message WorkspaceChangedEvent {
+  int32 new_index = 1;
+  int32 total_workspaces = 2;
+}
+
+message FocusChangedEvent {
+  string window_title = 1;
+  string app_id = 2;
+  string wm_class = 3;
+}
