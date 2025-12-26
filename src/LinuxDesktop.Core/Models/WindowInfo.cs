@@ -3,15 +3,15 @@ namespace Olbrasoft.LinuxDesktop.Core.Models;
 /// <summary>
 /// Basic window information from window list.
 /// </summary>
-public class WindowInfo
+public record WindowInfo
 {
-    public uint Id { get; set; }
-    public string? Title { get; set; }
-    public string? WmClass { get; set; }
-    public string? WmClassInstance { get; set; }
-    public int Pid { get; set; }
-    public bool InCurrentWorkspace { get; set; }
-    public bool HasFocus { get; set; }
-    public int FrameType { get; set; }
-    public int WindowType { get; set; }
+    public required uint Id { get; init; }
+    public string? Title { get; init; }
+    public string? WmClass { get; init; }
+    public string? WmClassInstance { get; init; }
+    public int Pid { get; init; }
+    public bool InCurrentWorkspace { get; init; }
+    public bool HasFocus { get; init; }
+    public int FrameType { get; init; }
+    public int WindowType { get; init; }
 }

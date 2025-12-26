@@ -24,6 +24,17 @@ public class WindowInfoTests
         Assert.True(windowInfo.HasFocus);
         Assert.True(windowInfo.InCurrentWorkspace);
     }
+
+    [Fact]
+    public void WindowInfo_IsImmutable()
+    {
+        var window1 = new WindowInfo { Id = 1, Title = "Window 1" };
+        var window2 = window1 with { Title = "Window 2" };
+
+        Assert.NotEqual(window1, window2);
+        Assert.Equal("Window 1", window1.Title);
+        Assert.Equal("Window 2", window2.Title);
+    }
 }
 
 public class WindowDetailsTests
@@ -51,5 +62,45 @@ public class WindowDetailsTests
         Assert.Equal(600, details.Height);
         Assert.True(details.CanClose);
         Assert.True(details.CanMaximize);
+    }
+
+    [Fact]
+    public void WindowDetails_IsImmutable()
+    {
+        var details1 = new WindowDetails { Id = 1, X = 100, Y = 200 };
+        var details2 = details1 with { X = 300 };
+
+        Assert.NotEqual(details1, details2);
+        Assert.Equal(100, details1.X);
+        Assert.Equal(300, details2.X);
+    }
+}
+
+public class WorkspaceInfoTests
+{
+    [Fact]
+    public void WorkspaceInfo_CanBeCreated()
+    {
+        var workspace = new WorkspaceInfo
+        {
+            Index = 2,
+            IsActive = true,
+            WindowCount = 5
+        };
+
+        Assert.Equal(2, workspace.Index);
+        Assert.True(workspace.IsActive);
+        Assert.Equal(5, workspace.WindowCount);
+    }
+
+    [Fact]
+    public void WorkspaceInfo_IsImmutable()
+    {
+        var ws1 = new WorkspaceInfo { Index = 1, IsActive = true };
+        var ws2 = ws1 with { IsActive = false };
+
+        Assert.NotEqual(ws1, ws2);
+        Assert.True(ws1.IsActive);
+        Assert.False(ws2.IsActive);
     }
 }

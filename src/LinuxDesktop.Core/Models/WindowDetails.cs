@@ -3,19 +3,19 @@ namespace Olbrasoft.LinuxDesktop.Core.Models;
 /// <summary>
 /// Detailed window information including position and capabilities.
 /// </summary>
-public class WindowDetails : WindowInfo
+public record WindowDetails : WindowInfo
 {
-    public int X { get; set; }
-    public int Y { get; set; }
-    public int Width { get; set; }
-    public int Height { get; set; }
-    public int Monitor { get; set; }
-    public int Layer { get; set; }
-    public int Maximized { get; set; }
-    public string? Role { get; set; }
-    public bool CanClose { get; set; }
-    public bool CanMaximize { get; set; }
-    public bool CanMinimize { get; set; }
-    public bool IsMoveable { get; set; }
-    public bool IsResizeable { get; set; }
+    public int X { get; init; }
+    public int Y { get; init; }
+    public int Width { get; init; }
+    public int Height { get; init; }
+    public int Monitor { get; init; }
+    public int Layer { get; init; }
+    public int Maximized { get; init; }
+    public string? Role { get; init; }
+    public bool CanClose { get; init; }
+    public bool CanMaximize { get; init; }
+    public bool CanMinimize { get; init; }
+    public bool IsMoveable { get; init; }
+    public bool IsResizeable { get; init; }
 }
