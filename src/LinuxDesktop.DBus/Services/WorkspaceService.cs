@@ -73,6 +73,14 @@ public class WorkspaceService : DBusServiceBase, IWorkspaceService
         }
         catch (JsonException)
         {
+            // TODO: Log exception details when ILogger is added (Wave 5)
+            // For now, return empty list to maintain backwards compatibility
+            return [];
+        }
+        catch (Exception)
+        {
+            // TODO: Log exception details when ILogger is added (Wave 5)
+            // Unexpected error during JSON parsing
             return [];
         }
     }
@@ -86,6 +94,14 @@ public class WorkspaceService : DBusServiceBase, IWorkspaceService
         }
         catch (JsonException)
         {
+            // TODO: Log exception details when ILogger is added (Wave 5)
+            // For now, return empty list to maintain backwards compatibility
+            return [];
+        }
+        catch (Exception)
+        {
+            // TODO: Log exception details when ILogger is added (Wave 5)
+            // Unexpected error during JSON parsing
             return [];
         }
     }

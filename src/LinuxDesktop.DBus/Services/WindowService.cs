@@ -126,6 +126,15 @@ public class WindowService : DBusServiceBase, IWindowService
         }
         catch (JsonException)
         {
+            // TODO: Log exception details when ILogger is added (Wave 5)
+            // For now, return empty list to maintain backwards compatibility
+            // In future, consider throwing DBusException with descriptive message
+            return [];
+        }
+        catch (Exception)
+        {
+            // TODO: Log exception details when ILogger is added (Wave 5)
+            // Unexpected error during JSON parsing - should not happen normally
             return [];
         }
     }
@@ -139,6 +148,14 @@ public class WindowService : DBusServiceBase, IWindowService
         }
         catch (JsonException)
         {
+            // TODO: Log exception details when ILogger is added (Wave 5)
+            // For now, return null to indicate parsing failure
+            return null;
+        }
+        catch (Exception)
+        {
+            // TODO: Log exception details when ILogger is added (Wave 5)
+            // Unexpected error during JSON parsing
             return null;
         }
     }
