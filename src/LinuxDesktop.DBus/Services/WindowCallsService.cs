@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Olbrasoft.LinuxDesktop.Core.Models;
 using Olbrasoft.LinuxDesktop.Core.Services;
+using Olbrasoft.LinuxDesktop.DBus.DTOs;
 using Olbrasoft.LinuxDesktop.DBus.Exceptions;
 using Tmds.DBus.Protocol;
 
@@ -230,17 +231,18 @@ public class WindowCallsService : IWindowService, IWorkspaceService, IAsyncDispo
         return (int)reader.ReadUInt32();
     }
 
+    private static readonly JsonSerializerOptions JsonOptions = new();
+
     private static IReadOnlyList<WindowInfo> ParseWindowList(string json)
     {
         try
         {
-            var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-            var windows = JsonSerializer.Deserialize<List<JsonWindowInfo>>(json, options);
-            return windows?.Select(w => w.ToWindowInfo()).ToList() ?? new List<WindowInfo>();
+            var windows = JsonSerializer.Deserialize<List<WindowInfoDto>>(json, JsonOptions);
+            return windows?.Select(w => w.ToWindowInfo()).ToList() ?? [];
         }
         catch (JsonException)
         {
-            return Array.Empty<WindowInfo>();
+            return [];
         }
     }
 
@@ -248,8 +250,7 @@ public class WindowCallsService : IWindowService, IWorkspaceService, IAsyncDispo
     {
         try
         {
-            var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-            var window = JsonSerializer.Deserialize<JsonWindowDetails>(json, options);
+            var window = JsonSerializer.Deserialize<WindowDetailsDto>(json, JsonOptions);
             return window?.ToWindowDetails();
         }
         catch (JsonException)
@@ -262,13 +263,12 @@ public class WindowCallsService : IWindowService, IWorkspaceService, IAsyncDispo
     {
         try
         {
-            var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-            var workspaces = JsonSerializer.Deserialize<List<JsonWorkspaceInfo>>(json, options);
-            return workspaces?.Select(w => w.ToWorkspaceInfo()).ToList() ?? new List<WorkspaceInfo>();
+            var workspaces = JsonSerializer.Deserialize<List<WorkspaceInfoDto>>(json, JsonOptions);
+            return workspaces?.Select(w => w.ToWorkspaceInfo()).ToList() ?? [];
         }
         catch (JsonException)
         {
-            return Array.Empty<WorkspaceInfo>();
+            return [];
         }
     }
 
@@ -278,89 +278,5 @@ public class WindowCallsService : IWindowService, IWorkspaceService, IAsyncDispo
         _disposed = true;
         _connection.Dispose();
         await Task.CompletedTask;
-    }
-
-    // JSON DTOs for deserialization
-    private class JsonWindowInfo
-    {
-        public uint Id { get; set; }
-        public string? Title { get; set; }
-        public string? Wm_class { get; set; }
-        public string? Wm_class_instance { get; set; }
-        public int Pid { get; set; }
-        public bool In_current_workspace { get; set; }
-        public bool Focus { get; set; }
-        public int Frame_type { get; set; }
-        public int Window_type { get; set; }
-
-        public WindowInfo ToWindowInfo() => new()
-        {
-            Id = Id,
-            Title = Title,
-            WmClass = Wm_class,
-            WmClassInstance = Wm_class_instance,
-            Pid = Pid,
-            InCurrentWorkspace = In_current_workspace,
-            HasFocus = Focus,
-            FrameType = Frame_type,
-            WindowType = Window_type
-        };
-    }
-
-    private class JsonWindowDetails : JsonWindowInfo
-    {
-        public int X { get; set; }
-        public int Y { get; set; }
-        public int Width { get; set; }
-        public int Height { get; set; }
-        public int Monitor { get; set; }
-        public int Layer { get; set; }
-        public int Maximized { get; set; }
-        public string? Role { get; set; }
-        public bool Canclose { get; set; }
-        public bool Canmaximize { get; set; }
-        public bool Canminimize { get; set; }
-        public bool Moveable { get; set; }
-        public bool Resizeable { get; set; }
-
-        public WindowDetails ToWindowDetails() => new()
-        {
-            Id = Id,
-            Title = Title,
-            WmClass = Wm_class,
-            WmClassInstance = Wm_class_instance,
-            Pid = Pid,
-            InCurrentWorkspace = In_current_workspace,
-            HasFocus = Focus,
-            FrameType = Frame_type,
-            WindowType = Window_type,
-            X = X,
-            Y = Y,
-            Width = Width,
-            Height = Height,
-            Monitor = Monitor,
-            Layer = Layer,
-            Maximized = Maximized,
-            Role = Role,
-            CanClose = Canclose,
-            CanMaximize = Canmaximize,
-            CanMinimize = Canminimize,
-            IsMoveable = Moveable,
-            IsResizeable = Resizeable
-        };
-    }
-
-    private class JsonWorkspaceInfo
-    {
-        public int Index { get; set; }
-        public bool Active { get; set; }
-        public int Windows { get; set; }
-
-        public WorkspaceInfo ToWorkspaceInfo() => new()
-        {
-            Index = Index,
-            IsActive = Active,
-            WindowCount = Windows
-        };
     }
 }
