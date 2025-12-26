@@ -14,9 +14,12 @@ try
     Console.WriteLine($"   Idle > 5 min: {await idleService.IsIdleForAsync(TimeSpan.FromMinutes(5))}");
     Console.WriteLine();
 
-    // Test Window Calls
-    Console.WriteLine("2. Testing Window Calls extension...");
-    await using var windowService = await WindowCallsService.CreateAsync();
+    // Test Window Service
+    Console.WriteLine("2. Testing Window Service...");
+    await using var windowService = await WindowService.CreateAsync();
+
+    // Test Workspace Service
+    await using var workspaceService = await WorkspaceService.CreateAsync();
 
     var windows = await windowService.GetWindowsAsync();
     Console.WriteLine($"   Found {windows.Count} windows:\n");
@@ -87,13 +90,13 @@ try
 
     // Test Workspace methods
     Console.WriteLine("\n7. Testing Workspace methods...");
-    var workspaceCount = await windowService.GetWorkspaceCountAsync();
-    var activeWorkspace = await windowService.GetActiveWorkspaceAsync();
+    var workspaceCount = await workspaceService.GetWorkspaceCountAsync();
+    var activeWorkspace = await workspaceService.GetActiveWorkspaceAsync();
     Console.WriteLine($"   Workspace count: {workspaceCount}");
     Console.WriteLine($"   Active workspace: {activeWorkspace}");
 
     Console.WriteLine("\n8. Testing GetWorkspaces...");
-    var workspaces = await windowService.GetWorkspacesAsync();
+    var workspaces = await workspaceService.GetWorkspacesAsync();
     foreach (var ws in workspaces)
     {
         var activeMarker = ws.IsActive ? " [ACTIVE]" : "";
@@ -101,7 +104,7 @@ try
     }
 
     Console.WriteLine("\n9. Testing GetWorkspaceWindows (workspace 0)...");
-    var ws0Windows = await windowService.GetWorkspaceWindowsAsync(0);
+    var ws0Windows = await workspaceService.GetWorkspaceWindowsAsync(0);
     foreach (var w in ws0Windows.Take(5))
     {
         Console.WriteLine($"   [{w.Id}] {w.WmClass}: {w.Title?.Truncate(40)}");
