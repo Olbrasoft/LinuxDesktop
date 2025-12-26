@@ -6,18 +6,14 @@ namespace Olbrasoft.LinuxDesktop.DBus.Services;
 /// <summary>
 /// Idle monitoring service using GNOME Mutter IdleMonitor via D-Bus.
 /// </summary>
-public class IdleMonitorService : IIdleService, IAsyncDisposable
+public class IdleMonitorService : DBusServiceBase, IIdleService
 {
-    private const string ServiceName = "org.gnome.Mutter.IdleMonitor";
-    private const string ObjectPath = "/org/gnome/Mutter/IdleMonitor/Core";
-    private const string Interface = "org.gnome.Mutter.IdleMonitor";
+    protected override string ServiceName => "org.gnome.Mutter.IdleMonitor";
+    protected override string ObjectPath => "/org/gnome/Mutter/IdleMonitor/Core";
+    protected override string Interface => "org.gnome.Mutter.IdleMonitor";
 
-    private readonly Connection _connection;
-    private bool _disposed;
-
-    public IdleMonitorService(Connection connection)
+    public IdleMonitorService(Connection connection) : base(connection)
     {
-        _connection = connection ?? throw new ArgumentNullException(nameof(connection));
     }
 
     public static async Task<IdleMonitorService> CreateAsync(CancellationToken cancellationToken = default)
@@ -29,15 +25,8 @@ public class IdleMonitorService : IIdleService, IAsyncDisposable
 
     public async Task<ulong> GetIdleTimeAsync(CancellationToken cancellationToken = default)
     {
-        var writer = _connection.GetMessageWriter();
-        writer.WriteMethodCallHeader(
-            destination: ServiceName,
-            path: ObjectPath,
-            @interface: Interface,
-            member: "GetIdletime");
-        var message = writer.CreateMessage();
-
-        return await _connection.CallMethodAsync(message, ReadUInt64, this);
+        var message = CreateMethodCall("GetIdletime");
+        return await Connection.CallMethodAsync(message, ReadUInt64, this);
     }
 
     private static ulong ReadUInt64(Message message, object? state)
@@ -56,13 +45,5 @@ public class IdleMonitorService : IIdleService, IAsyncDisposable
     {
         var idleTime = await GetIdleTimeSpanAsync(cancellationToken);
         return idleTime >= duration;
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        if (_disposed) return;
-        _disposed = true;
-        _connection.Dispose();
-        await Task.CompletedTask;
     }
 }
