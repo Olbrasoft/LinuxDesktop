@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Olbrasoft.LinuxDesktop.Core.Models;
 using Olbrasoft.LinuxDesktop.Core.Services;
+using Olbrasoft.LinuxDesktop.DBus.Exceptions;
 using Tmds.DBus.Protocol;
 
 namespace Olbrasoft.LinuxDesktop.DBus.Services;
@@ -361,15 +362,5 @@ public class WindowCallsService : IWindowService, IWorkspaceService, IAsyncDispo
             IsActive = Active,
             WindowCount = Windows
         };
-    }
-}
-
-public class DBusException : Exception
-{
-    public string ErrorName { get; }
-
-    public DBusException(string errorName, string message) : base($"{errorName}: {message}")
-    {
-        ErrorName = errorName;
     }
 }

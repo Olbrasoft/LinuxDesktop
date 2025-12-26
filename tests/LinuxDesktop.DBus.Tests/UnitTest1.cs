@@ -1,4 +1,4 @@
-using Olbrasoft.LinuxDesktop.DBus.Services;
+using Olbrasoft.LinuxDesktop.DBus.Exceptions;
 
 namespace LinuxDesktop.DBus.Tests;
 

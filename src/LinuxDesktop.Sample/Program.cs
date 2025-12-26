@@ -1,3 +1,4 @@
+using Olbrasoft.LinuxDesktop.DBus.Exceptions;
 using Olbrasoft.LinuxDesktop.DBus.Services;
 
 Console.WriteLine("LinuxDesktop D-Bus Demo");
