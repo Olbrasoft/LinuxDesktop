@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using Olbrasoft.LinuxDesktop.Core.Services;
 using Tmds.DBus.Protocol;
 
@@ -12,15 +13,15 @@ public class IdleMonitorService : DBusServiceBase, IIdleService
     protected override string ObjectPath => "/org/gnome/Mutter/IdleMonitor/Core";
     protected override string Interface => "org.gnome.Mutter.IdleMonitor";
 
-    public IdleMonitorService(Connection connection) : base(connection)
+    public IdleMonitorService(Connection connection, ILogger<IdleMonitorService>? logger = null) : base(connection, logger)
     {
     }
 
-    public static async Task<IdleMonitorService> CreateAsync(CancellationToken cancellationToken = default)
+    public static async Task<IdleMonitorService> CreateAsync(ILogger<IdleMonitorService>? logger = null, CancellationToken cancellationToken = default)
     {
         var connection = new Connection(Address.Session!);
         await connection.ConnectAsync();
-        return new IdleMonitorService(connection);
+        return new IdleMonitorService(connection, logger);
     }
 
     public async Task<ulong> GetIdleTimeAsync(CancellationToken cancellationToken = default)

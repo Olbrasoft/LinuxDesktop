@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 using Olbrasoft.LinuxDesktop.Core.Models;
 using Olbrasoft.LinuxDesktop.Core.Services;
 using Olbrasoft.LinuxDesktop.DBus.DTOs;
@@ -18,15 +19,15 @@ public class WorkspaceService : DBusServiceBase, IWorkspaceService
 
     private static readonly JsonSerializerOptions JsonOptions = new();
 
-    public WorkspaceService(Connection connection) : base(connection)
+    public WorkspaceService(Connection connection, ILogger<WorkspaceService>? logger = null) : base(connection, logger)
     {
     }
 
-    public static async Task<WorkspaceService> CreateAsync(CancellationToken cancellationToken = default)
+    public static async Task<WorkspaceService> CreateAsync(ILogger<WorkspaceService>? logger = null, CancellationToken cancellationToken = default)
     {
         var connection = new Connection(Address.Session!);
         await connection.ConnectAsync();
-        return new WorkspaceService(connection);
+        return new WorkspaceService(connection, logger);
     }
 
     public async Task<IReadOnlyList<WorkspaceInfo>> GetWorkspacesAsync(CancellationToken cancellationToken = default)
@@ -64,44 +65,40 @@ public class WorkspaceService : DBusServiceBase, IWorkspaceService
         return ParseWindowList(json);
     }
 
-    private static IReadOnlyList<WorkspaceInfo> ParseWorkspaceList(string json)
+    private IReadOnlyList<WorkspaceInfo> ParseWorkspaceList(string json)
     {
         try
         {
             var workspaces = JsonSerializer.Deserialize<List<WorkspaceInfoDto>>(json, JsonOptions);
             return workspaces?.Select(w => w.ToWorkspaceInfo()).ToList() ?? [];
         }
-        catch (JsonException)
+        catch (JsonException ex)
         {
-            // TODO: Log exception details when ILogger is added (Wave 5)
-            // For now, return empty list to maintain backwards compatibility
+            Logger.LogError(ex, "Failed to parse workspace list JSON. JSON: {Json}", json);
             return [];
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // TODO: Log exception details when ILogger is added (Wave 5)
-            // Unexpected error during JSON parsing
+            Logger.LogError(ex, "Unexpected error parsing workspace list JSON. JSON: {Json}", json);
             return [];
         }
     }
 
-    private static IReadOnlyList<WindowInfo> ParseWindowList(string json)
+    private IReadOnlyList<WindowInfo> ParseWindowList(string json)
     {
         try
         {
             var windows = JsonSerializer.Deserialize<List<WindowInfoDto>>(json, JsonOptions);
             return windows?.Select(w => w.ToWindowInfo()).ToList() ?? [];
         }
-        catch (JsonException)
+        catch (JsonException ex)
         {
-            // TODO: Log exception details when ILogger is added (Wave 5)
-            // For now, return empty list to maintain backwards compatibility
+            Logger.LogError(ex, "Failed to parse window list JSON in WorkspaceService. JSON: {Json}", json);
             return [];
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // TODO: Log exception details when ILogger is added (Wave 5)
-            // Unexpected error during JSON parsing
+            Logger.LogError(ex, "Unexpected error parsing window list JSON in WorkspaceService. JSON: {Json}", json);
             return [];
         }
     }

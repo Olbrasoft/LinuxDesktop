@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Tmds.DBus.Protocol;
 
 namespace Olbrasoft.LinuxDesktop.DBus.Services;
@@ -9,6 +11,7 @@ namespace Olbrasoft.LinuxDesktop.DBus.Services;
 public abstract class DBusServiceBase : IAsyncDisposable
 {
     protected readonly Connection Connection;
+    protected readonly ILogger Logger;
     private bool _disposed;
 
     /// <summary>
@@ -26,9 +29,10 @@ public abstract class DBusServiceBase : IAsyncDisposable
     /// </summary>
     protected abstract string Interface { get; }
 
-    protected DBusServiceBase(Connection connection)
+    protected DBusServiceBase(Connection connection, ILogger? logger = null)
     {
         Connection = connection ?? throw new ArgumentNullException(nameof(connection));
+        Logger = logger ?? NullLogger.Instance;
     }
 
     /// <summary>

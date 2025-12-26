@@ -1,4 +1,6 @@
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Olbrasoft.LinuxDesktop.Core.Models;
 using Olbrasoft.LinuxDesktop.Core.Services;
 using Olbrasoft.LinuxDesktop.DBus.DTOs;
@@ -18,15 +20,15 @@ public class WindowService : DBusServiceBase, IWindowService
 
     private static readonly JsonSerializerOptions JsonOptions = new();
 
-    public WindowService(Connection connection) : base(connection)
+    public WindowService(Connection connection, ILogger<WindowService>? logger = null) : base(connection, logger)
     {
     }
 
-    public static async Task<WindowService> CreateAsync(CancellationToken cancellationToken = default)
+    public static async Task<WindowService> CreateAsync(ILogger<WindowService>? logger = null, CancellationToken cancellationToken = default)
     {
         var connection = new Connection(Address.Session!);
         await connection.ConnectAsync();
-        return new WindowService(connection);
+        return new WindowService(connection, logger);
     }
 
     public async Task<IReadOnlyList<WindowInfo>> GetWindowsAsync(CancellationToken cancellationToken = default)
@@ -117,45 +119,40 @@ public class WindowService : DBusServiceBase, IWindowService
         }, "uu", cancellationToken);
     }
 
-    private static IReadOnlyList<WindowInfo> ParseWindowList(string json)
+    private IReadOnlyList<WindowInfo> ParseWindowList(string json)
     {
         try
         {
             var windows = JsonSerializer.Deserialize<List<WindowInfoDto>>(json, JsonOptions);
             return windows?.Select(w => w.ToWindowInfo()).ToList() ?? [];
         }
-        catch (JsonException)
+        catch (JsonException ex)
         {
-            // TODO: Log exception details when ILogger is added (Wave 5)
-            // For now, return empty list to maintain backwards compatibility
-            // In future, consider throwing DBusException with descriptive message
+            Logger.LogError(ex, "Failed to parse window list JSON. JSON: {Json}", json);
             return [];
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // TODO: Log exception details when ILogger is added (Wave 5)
-            // Unexpected error during JSON parsing - should not happen normally
+            Logger.LogError(ex, "Unexpected error parsing window list JSON. JSON: {Json}", json);
             return [];
         }
     }
 
-    private static WindowDetails? ParseWindowDetails(string json)
+    private WindowDetails? ParseWindowDetails(string json)
     {
         try
         {
             var window = JsonSerializer.Deserialize<WindowDetailsDto>(json, JsonOptions);
             return window?.ToWindowDetails();
         }
-        catch (JsonException)
+        catch (JsonException ex)
         {
-            // TODO: Log exception details when ILogger is added (Wave 5)
-            // For now, return null to indicate parsing failure
+            Logger.LogError(ex, "Failed to parse window details JSON. JSON: {Json}", json);
             return null;
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // TODO: Log exception details when ILogger is added (Wave 5)
-            // Unexpected error during JSON parsing
+            Logger.LogError(ex, "Unexpected error parsing window details JSON. JSON: {Json}", json);
             return null;
         }
     }
