@@ -1,5 +1,9 @@
 # LinuxDesktop
 
+[![NuGet - Core](https://img.shields.io/nuget/v/Olbrasoft.LinuxDesktop.Core.svg)](https://www.nuget.org/packages/Olbrasoft.LinuxDesktop.Core/)
+[![NuGet - DBus](https://img.shields.io/nuget/v/Olbrasoft.LinuxDesktop.DBus.svg)](https://www.nuget.org/packages/Olbrasoft.LinuxDesktop.DBus/)
+[![NuGet - Accessibility](https://img.shields.io/nuget/v/Olbrasoft.LinuxDesktop.Accessibility.svg)](https://www.nuget.org/packages/Olbrasoft.LinuxDesktop.Accessibility/)
+
 .NET library for Linux desktop integration using D-Bus (Tmds.DBus).
 
 ## Why This Library Exists
@@ -116,19 +120,38 @@ dotnet build
 dotnet test
 ```
 
-### Future: NuGet Package
+### NuGet Installation
 
-Once stabilized, this will be available as a NuGet package:
+Install via NuGet (recommended):
+
 ```bash
-dotnet add package Olbrasoft.LinuxDesktop
+# DBus - D-Bus implementation (most common, includes Core as dependency)
+dotnet add package Olbrasoft.LinuxDesktop.DBus
+
+# Core - Interfaces and models only (if you only need abstractions)
+dotnet add package Olbrasoft.LinuxDesktop.Core
+
+# Accessibility - AT-SPI support (optional, experimental)
+dotnet add package Olbrasoft.LinuxDesktop.Accessibility
 ```
+
+**Package dependencies:**
+- `LinuxDesktop.DBus` → requires `LinuxDesktop.Core` (automatic)
+- `LinuxDesktop.Accessibility` → standalone (optional)
+
+**For most use cases**, you only need:
+```bash
+dotnet add package Olbrasoft.LinuxDesktop.DBus
+```
+(This automatically includes `LinuxDesktop.Core` as a transitive dependency)
 
 ## Integration with VirtualAssistant
 
-This library will be consumed by [VirtualAssistant](https://github.com/Olbrasoft/VirtualAssistant):
+This library is consumed by [VirtualAssistant](https://github.com/Olbrasoft/VirtualAssistant) via NuGet packages:
 
-1. **Development phase**: Project reference (linked locally)
-2. **Stable phase**: NuGet package
+**Current approach:** ✅ NuGet packages (stable, published to NuGet.org)
+
+~~**Previous approach:** Project references (deprecated, used during development)~~
 
 ```csharp
 // Example usage in VirtualAssistant
