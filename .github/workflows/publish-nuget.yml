@@ -31,7 +31,7 @@ jobs:
 
     # Package (CD)
     - name: Pack NuGet packages
-      run: dotnet pack -c Release --no-build -o ./artifacts
+      run: dotnet pack -c Release --no-build -o ./artifacts /p:Version=1.0.${{ github.run_number }}
 
     # Publish to NuGet.org
     - name: Publish to NuGet
