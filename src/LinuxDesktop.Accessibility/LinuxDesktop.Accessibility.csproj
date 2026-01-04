@@ -21,7 +21,7 @@
 
   <ItemGroup>
     <PackageReference Include="GirCore.GLib-2.0" Version="0.7.0" />
-    <PackageReference Include="Tmds.DBus" Version="0.22.0" />
+    <PackageReference Include="Tmds.DBus" Version="0.23.0" />
     <PackageReference Include="Tmds.DBus.Protocol" Version="0.22.0" />
   </ItemGroup>
 
