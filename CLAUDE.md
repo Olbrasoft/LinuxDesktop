@@ -6,6 +6,25 @@
 
 **Primary use case:** VirtualAssistant context awareness - know where user is on desktop to provide intelligent, context-aware notifications and navigation.
 
+## 📦 Packaging Workflow
+
+**DUAL PUBLISHING** - Packages are automatically created in two locations:
+
+| Location | When | Purpose |
+|----------|------|---------|
+| **Local** (`~/Olbrasoft/LinuxDesktop/artifacts/`) | After every `git commit` | Development & testing |
+| **NuGet.org** | After `git push` to main (GitHub Actions) | Production release |
+
+**Development flow:**
+1. Make changes → `git commit` → **local packages ready instantly**
+2. Test in VirtualAssistant using local packages
+3. When stable → `git push` → **published to NuGet.org**
+4. Switch VirtualAssistant to NuGet.org packages
+
+**Version format:**
+- Local: `1.0.COMMITS-local` (e.g., 1.0.123-local)
+- Production: `1.0.RUN_NUMBER` (e.g., 1.0.5)
+
 ## Architecture
 
 **Clean Architecture with ISP (Interface Segregation Principle)**
@@ -74,64 +93,111 @@ await foreach (var evt in a11y.WatchFocusChangesAsync())
 
 ## Package Usage
 
-### Development Phase (Current)
+### Development Workflow (AUTOMATIC)
 
-**Use local NuGet packages** for rapid iteration:
+**IMPORTANT:** When developing LinuxDesktop, local packages are **automatically created** after each commit.
 
-#### 1. Pack Packages Locally
+#### Automatic Pack on Commit
 
-```bash
-cd ~/Olbrasoft/LinuxDesktop
-dotnet pack -c Release -o ./artifacts
+A git post-commit hook automatically:
+1. ✅ Increments version based on commit count: `1.0.COMMITS-local`
+2. ✅ Packs NuGet packages to `./artifacts/`
+3. ✅ Shows package info after commit
+
+**You don't need to manually run `dotnet pack`** - it happens automatically!
+
+**Example after commit:**
+```
+[main abc1234] feat: Add new feature
+ 1 file changed, 10 insertions(+)
+🔨 Post-commit: Packing NuGet packages...
+✅ Packages packed successfully to ./artifacts/
+📦 Version: 1.0.123-local
+-rw-r--r-- 1 user user 15K Jan  4 11:00 Olbrasoft.LinuxDesktop.Core.1.0.123-local.nupkg
+-rw-r--r-- 1 user user 18K Jan  4 11:00 Olbrasoft.LinuxDesktop.DBus.1.0.123-local.nupkg
+-rw-r--r-- 1 user user 14K Jan  4 11:00 Olbrasoft.LinuxDesktop.Accessibility.1.0.123-local.nupkg
 ```
 
-**Output:** `~/Olbrasoft/LinuxDesktop/artifacts/*.nupkg`
+#### Package Location
 
-#### 2. Add Local Source (in VirtualAssistant)
+**Local artifacts:** `~/Olbrasoft/LinuxDesktop/artifacts/`
 
+These packages are automatically created after **every commit** and ready to use immediately.
+
+#### Using Local Packages in VirtualAssistant
+
+**1. Add local NuGet source (one-time setup):**
 ```bash
 cd ~/Olbrasoft/VirtualAssistant
 dotnet nuget add source ~/Olbrasoft/LinuxDesktop/artifacts --name "LinuxDesktopLocal"
 ```
 
-#### 3. Install Local Packages
-
+**2. Install/update packages:**
 ```bash
-# Use exact version
-dotnet add package Olbrasoft.LinuxDesktop.Core --version 1.0.0
-dotnet add package Olbrasoft.LinuxDesktop.DBus --version 1.0.0
+# Find latest version in artifacts
+ls ~/Olbrasoft/LinuxDesktop/artifacts/*.nupkg | tail -1
+
+# Install with latest version (e.g., 1.0.123-local)
+dotnet add package Olbrasoft.LinuxDesktop.DBus --version 1.0.123-local
+
+# Or use wildcard to always get latest local version
+dotnet add package Olbrasoft.LinuxDesktop.DBus --version "1.0.*-local"
 ```
 
-#### 4. Iterate Quickly
-
-After changes to LinuxDesktop:
+**3. Update to latest after LinuxDesktop changes:**
 ```bash
-# Re-pack
-cd ~/Olbrasoft/LinuxDesktop
-dotnet pack -c Release -o ./artifacts
-
-# Update VirtualAssistant
 cd ~/Olbrasoft/VirtualAssistant
 dotnet nuget locals all --clear
 dotnet restore
 dotnet build
 ```
 
-**Why local packages?**
-- ✅ Instant feedback (no 5-15 min NuGet.org delay)
-- ✅ Test before publishing
+#### Development Cycle
+
+**Workflow:**
+1. Make changes to LinuxDesktop code
+2. `git add .` and `git commit -m "..."`
+3. ✅ **Post-commit hook automatically packs packages**
+4. In VirtualAssistant: `dotnet nuget locals all --clear && dotnet restore && dotnet build`
+5. Test your changes immediately
+
+**No waiting for NuGet.org!**
+- ✅ Instant feedback (packages ready after commit)
+- ✅ Test before publishing to production
 - ✅ Same workflow as production (NuGet packages)
+- ✅ Automatic versioning (commit count)
 
-### Production Phase (Future)
+### Production Phase (After Integration Testing)
 
-After packages published to NuGet.org:
+When LinuxDesktop changes are **fully tested and integrated** in VirtualAssistant, switch to NuGet.org packages:
 
+**Why switch?**
+- ✅ Development complete - no more rapid changes
+- ✅ Tested in VirtualAssistant
+- ✅ Ready for stable version
+- ✅ Other projects can use the same version
+
+**How to switch:**
 ```bash
-# Remove local source
+cd ~/Olbrasoft/VirtualAssistant
+
+# 1. Remove local source
 dotnet nuget remove source LinuxDesktopLocal
 
-# Install from NuGet.org
-dotnet add package Olbrasoft.LinuxDesktop.DBus
+# 2. Clear cache
+dotnet nuget locals all --clear
+
+# 3. Install from NuGet.org (auto-published via GitHub Actions)
+dotnet add package Olbrasoft.LinuxDesktop.DBus --version 1.0.N
+
+# 4. Restore from NuGet.org
+dotnet restore
+```
+
+**Verify:**
+```bash
+dotnet restore --verbosity detailed | grep "nuget.org"
+# Should show: Installed Olbrasoft.LinuxDesktop.DBus from nuget.org
 ```
 
 ### Alternative: Project Reference
