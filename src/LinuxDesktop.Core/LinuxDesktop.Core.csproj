@@ -5,6 +5,16 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <RootNamespace>Olbrasoft.LinuxDesktop.Core</RootNamespace>
+
+    <!-- NuGet Package Metadata -->
+    <PackageId>Olbrasoft.LinuxDesktop.Core</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>Olbrasoft</Authors>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/Olbrasoft/LinuxDesktop</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/Olbrasoft/LinuxDesktop</RepositoryUrl>
+    <PackageTags>linux;desktop;dbus;gnome;integration;window;workspace</PackageTags>
+    <Description>Linux desktop integration - Core interfaces and models for D-Bus communication with GNOME Shell</Description>
   </PropertyGroup>
 
 </Project>
