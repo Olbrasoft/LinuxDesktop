@@ -1,0 +1,30 @@
+{
+  "name": "focus-tracker-extension",
+  "version": "1.0.0",
+  "description": "GNOME Shell extension for desktop state tracking via D-Bus",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "clean": "rm -rf dist",
+    "prebuild": "npm run clean"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Olbrasoft/LinuxDesktop.git"
+  },
+  "keywords": [
+    "gnome-shell",
+    "extension",
+    "d-bus",
+    "typescript"
+  ],
+  "author": "Olbrasoft",
+  "license": "GPL-2.0-or-later"
+}

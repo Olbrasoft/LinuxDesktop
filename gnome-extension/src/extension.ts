@@ -1,10 +1,32 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Desktop State Tracker - Phase 2: Window & Application tracking
+// Desktop State Tracker - GNOME Shell Extension
+// Provides D-Bus API for desktop context awareness
+
+// Type declarations are in gjs.d.ts
+/// <reference path="./gjs.d.ts" />
 
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import Shell from 'gi://Shell';
-import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
+import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
+
+// Internal types
+interface GObjectWithSignals {
+    connect(signal: string, callback: () => void): number;
+    disconnect(id: number): void;
+}
+
+interface SignalConnection {
+    object: GObjectWithSignals;
+    id: number;
+}
+
+interface DBusExportedObject {
+    export(connection: unknown, path: string): void;
+    unexport(): void;
+    emit_signal(name: string, variant: unknown): void;
+    emit_property_changed(name: string, variant: unknown): void;
+}
 
 // D-Bus interface definition
 const INTERFACE_XML = `
@@ -44,37 +66,55 @@ const INTERFACE_XML = `
   </interface>
 </node>`;
 
+/**
+ * Desktop state service providing D-Bus methods and signals
+ * for workspace, window, and cursor tracking.
+ */
 class DesktopStateService {
+    private _workspaceManager: WorkspaceManager;
+    private _display: Display;
+    private _tracker: ShellWindowTracker;
+    private _signalIds: SignalConnection[];
+    public _impl: DBusExportedObject | null = null;
+
     constructor() {
         this._workspaceManager = global.workspace_manager;
         this._display = global.display;
-        this._tracker = Shell.WindowTracker.get_default();
+        this._tracker = Shell.WindowTracker.get_default() as ShellWindowTracker;
         this._signalIds = [];
 
         log('[DesktopState] Service initialized');
 
         // Connect to workspace change signals
-        const workspaceSwitchedId = this._workspaceManager.connect('workspace-switched',
-            this._onWorkspaceChanged.bind(this));
-        this._signalIds.push({object: this._workspaceManager, id: workspaceSwitchedId});
+        const workspaceSwitchedId = this._workspaceManager.connect(
+            'workspace-switched',
+            this._onWorkspaceChanged.bind(this)
+        );
+        this._signalIds.push({ object: this._workspaceManager, id: workspaceSwitchedId });
 
-        const nWorkspacesSignalId = this._workspaceManager.connect('notify::n-workspaces',
-            this._onWorkspacesCountChanged.bind(this));
-        this._signalIds.push({object: this._workspaceManager, id: nWorkspacesSignalId});
+        const nWorkspacesSignalId = this._workspaceManager.connect(
+            'notify::n-workspaces',
+            this._onWorkspacesCountChanged.bind(this)
+        );
+        this._signalIds.push({ object: this._workspaceManager, id: nWorkspacesSignalId });
 
         // Connect to focus change signals
-        const focusWindowId = this._display.connect('notify::focus-window',
-            this._onFocusChanged.bind(this));
-        this._signalIds.push({object: this._display, id: focusWindowId});
+        const focusWindowId = this._display.connect(
+            'notify::focus-window',
+            this._onFocusChanged.bind(this)
+        );
+        this._signalIds.push({ object: this._display, id: focusWindowId });
 
-        const focusAppId = this._tracker.connect('notify::focus-app',
-            this._onFocusChanged.bind(this));
-        this._signalIds.push({object: this._tracker, id: focusAppId});
+        const focusAppId = this._tracker.connect(
+            'notify::focus-app',
+            this._onFocusChanged.bind(this)
+        );
+        this._signalIds.push({ object: this._tracker, id: focusAppId });
     }
 
-    destroy() {
+    destroy(): void {
         // Disconnect all signals
-        this._signalIds.forEach(signal => {
+        this._signalIds.forEach((signal) => {
             signal.object.disconnect(signal.id);
         });
         this._signalIds = [];
@@ -83,26 +123,26 @@ class DesktopStateService {
     }
 
     // Property getters (must return GLib.Variant for D-Bus)
-    get CurrentWorkspace() {
+    get CurrentWorkspace(): unknown {
         const index = this._workspaceManager.get_active_workspace_index();
         log(`[DesktopState] Get CurrentWorkspace: ${index}`);
         return GLib.Variant.new_int32(index);
     }
 
-    get TotalWorkspaces() {
+    get TotalWorkspaces(): unknown {
         const total = this._workspaceManager.n_workspaces;
         log(`[DesktopState] Get TotalWorkspaces: ${total}`);
         return GLib.Variant.new_int32(total);
     }
 
-    get ActiveWindow() {
+    get ActiveWindow(): unknown {
         const window = this._display.focus_window;
-        const title = window ? window.get_title() : '';
+        const title = window ? window.get_title() ?? '' : '';
         log(`[DesktopState] Get ActiveWindow: ${title}`);
         return GLib.Variant.new_string(title);
     }
 
-    get ActiveApplication() {
+    get ActiveApplication(): unknown {
         const app = this._tracker.focus_app;
         const appId = app ? app.get_id() : '';
         log(`[DesktopState] Get ActiveApplication: ${appId}`);
@@ -110,7 +150,7 @@ class DesktopStateService {
     }
 
     // D-Bus Methods
-    GetWorkspaceApplications(workspaceIndex) {
+    GetWorkspaceApplications(workspaceIndex: number): unknown {
         log(`[DesktopState] GetWorkspaceApplications called for workspace: ${workspaceIndex}`);
 
         const totalWorkspaces = this._workspaceManager.n_workspaces;
@@ -129,7 +169,7 @@ class DesktopStateService {
 
         // Get all windows on this workspace
         const windows = workspace.list_windows();
-        const applications = [];
+        const applications: [string, string, string][] = [];
 
         for (const window of windows) {
             // Skip windows that shouldn't be tracked (skip_taskbar)
@@ -137,8 +177,8 @@ class DesktopStateService {
                 continue;
             }
 
-            const windowTitle = window.get_title() || '';
-            const wmClass = window.get_wm_class() || '';
+            const windowTitle = window.get_title() ?? '';
+            const wmClass = window.get_wm_class() ?? '';
 
             // Get application for this window
             const app = this._tracker.get_window_app(window);
@@ -153,13 +193,13 @@ class DesktopStateService {
         return GLib.Variant.new('a(sss)', applications);
     }
 
-    GetPointerPosition() {
+    GetPointerPosition(): unknown {
         const [x, y] = global.get_pointer();
         log(`[DesktopState] GetPointerPosition: (${x}, ${y})`);
         return GLib.Variant.new('(ii)', [x, y]);
     }
 
-    GetActiveWindowGeometry() {
+    GetActiveWindowGeometry(): unknown {
         const window = this._display.focus_window;
         if (!window) {
             log('[DesktopState] GetActiveWindowGeometry: no focused window');
@@ -172,55 +212,57 @@ class DesktopStateService {
     }
 
     // Signal handlers
-    _onWorkspaceChanged() {
+    private _onWorkspaceChanged(): void {
         const newIndex = this._workspaceManager.get_active_workspace_index();
         const total = this._workspaceManager.n_workspaces;
 
         log(`[DesktopState] Workspace changed: ${newIndex} / ${total}`);
 
         if (this._impl) {
-            this._impl.emit_signal('WorkspaceChanged',
-                new GLib.Variant('(ii)', [newIndex, total]));
+            this._impl.emit_signal('WorkspaceChanged', GLib.Variant.new('(ii)', [newIndex, total]));
         }
     }
 
-    _onWorkspacesCountChanged() {
+    private _onWorkspacesCountChanged(): void {
         const total = this._workspaceManager.n_workspaces;
 
         log(`[DesktopState] Workspaces count changed: ${total}`);
 
         // Emit property change signal
         if (this._impl) {
-            this._impl.emit_property_changed('TotalWorkspaces',
-                GLib.Variant.new_int32(total));
+            this._impl.emit_property_changed('TotalWorkspaces', GLib.Variant.new_int32(total));
         }
     }
 
-    _onFocusChanged() {
+    private _onFocusChanged(): void {
         const window = this._display.focus_window;
         const app = this._tracker.focus_app;
 
-        const windowTitle = window ? window.get_title() : '';
+        const windowTitle = window ? window.get_title() ?? '' : '';
         const appId = app ? app.get_id() : '';
-        const wmClass = window ? window.get_wm_class() : '';
+        const wmClass = window ? window.get_wm_class() ?? '' : '';
 
         log(`[DesktopState] Focus changed: ${windowTitle} (${appId}) [${wmClass}]`);
 
         if (this._impl) {
-            this._impl.emit_signal('FocusChanged',
-                new GLib.Variant('(sss)', [windowTitle, appId, wmClass]));
+            this._impl.emit_signal('FocusChanged', GLib.Variant.new('(sss)', [windowTitle, appId, wmClass]));
 
             // Also emit property changes
-            this._impl.emit_property_changed('ActiveWindow',
-                GLib.Variant.new_string(windowTitle));
-            this._impl.emit_property_changed('ActiveApplication',
-                GLib.Variant.new_string(appId));
+            this._impl.emit_property_changed('ActiveWindow', GLib.Variant.new_string(windowTitle));
+            this._impl.emit_property_changed('ActiveApplication', GLib.Variant.new_string(appId));
         }
     }
 }
 
+/**
+ * Main extension class exported to GNOME Shell.
+ */
 export default class DesktopStateExtension extends Extension {
-    enable() {
+    private _service: DesktopStateService | null = null;
+    private _ownerId: number | null = null;
+    private _exportedObject: DBusExportedObject | null = null;
+
+    enable(): void {
         log('[DesktopState] Extension enabling...');
 
         this._service = new DesktopStateService();
@@ -238,7 +280,7 @@ export default class DesktopStateExtension extends Extension {
         log('[DesktopState] Extension enabled');
     }
 
-    disable() {
+    disable(): void {
         log('[DesktopState] Extension disabling...');
 
         // Destroy service first
@@ -263,29 +305,35 @@ export default class DesktopStateExtension extends Extension {
         log('[DesktopState] Extension disabled');
     }
 
-    _onBusAcquired(connection, name) {
+    private _onBusAcquired(connection: unknown, name: string): void {
         log(`[DesktopState] Bus acquired: ${name}`);
 
         try {
             // Wrap service with D-Bus exported object
-            this._exportedObject = Gio.DBusExportedObject.wrapJSObject(INTERFACE_XML, this._service);
-            this._service._impl = this._exportedObject;
+            this._exportedObject = Gio.DBusExportedObject.wrapJSObject(
+                INTERFACE_XML,
+                this._service
+            ) as DBusExportedObject;
+
+            if (this._service) {
+                this._service._impl = this._exportedObject;
+            }
 
             // Export on D-Bus
             this._exportedObject.export(connection, '/org/olbrasoft/Desktop');
 
             log('[DesktopState] D-Bus object exported at /org/olbrasoft/Desktop');
         } catch (e) {
-            logError(e, '[DesktopState] Failed to export D-Bus object');
+            logError(e as Error, '[DesktopState] Failed to export D-Bus object');
         }
     }
 
-    _onNameAcquired(connection, name) {
+    private _onNameAcquired(_connection: unknown, name: string): void {
         log(`[DesktopState] Name acquired: ${name}`);
         log('[DesktopState] Service is now available on D-Bus!');
     }
 
-    _onNameLost(connection, name) {
+    private _onNameLost(_connection: unknown, name: string): void {
         log(`[DesktopState] Name lost: ${name}`);
         logError(new Error('Could not acquire D-Bus name'), '[DesktopState]');
     }
