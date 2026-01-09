@@ -2,6 +2,40 @@
 
 GNOME Shell extension that exports desktop workspace, window, and application state via D-Bus.
 
+## Development
+
+### Prerequisites
+
+- Node.js 20+
+- npm
+
+### Build from TypeScript
+
+```bash
+cd gnome-extension
+npm install
+npm run build
+```
+
+### Watch Mode (auto-rebuild on changes)
+
+```bash
+npm run watch
+```
+
+### Deploy to GNOME Shell
+
+```bash
+npm run build
+cp dist/extension.js metadata.json ~/.local/share/gnome-shell/extensions/focus-tracker@olbrasoft.cz/
+```
+
+Then reload GNOME Shell:
+- **X11:** Alt+F2 → type `r` → Enter
+- **Wayland:** `gnome-extensions disable focus-tracker@olbrasoft.cz && gnome-extensions enable focus-tracker@olbrasoft.cz`
+
+---
+
 ## Status: Phase 2 - Complete
 
 **Current features:**
