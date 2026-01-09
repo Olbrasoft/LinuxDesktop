@@ -1,0 +1,10 @@
+{
+  "name": "Desktop State Tracker",
+  "description": "Exports desktop workspace, window, and application state via D-Bus for external applications",
+  "uuid": "focus-tracker@olbrasoft.cz",
+  "shell-version": [
+    "48"
+  ],
+  "version": 2,
+  "url": "https://github.com/Olbrasoft/LinuxDesktop"
+}
