@@ -1,0 +1,91 @@
+name: GNOME Extension Deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'gnome-extension/**'
+      - '.github/workflows/deploy-extension.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'gnome-extension/**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Install dependencies
+      working-directory: ./gnome-extension
+      run: npm ci
+
+    - name: Build TypeScript
+      working-directory: ./gnome-extension
+      run: npm run build
+
+    - name: Verify build output
+      run: |
+        if [ -f gnome-extension/dist/extension.js ]; then
+          echo "✅ Build successful: extension.js generated"
+          ls -la gnome-extension/dist/
+        else
+          echo "❌ Build failed: extension.js not found"
+          exit 1
+        fi
+
+  deploy:
+    needs: build
+    runs-on: self-hosted
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Install dependencies
+      working-directory: ./gnome-extension
+      run: npm ci
+
+    - name: Build TypeScript
+      working-directory: ./gnome-extension
+      run: npm run build
+
+    - name: Deploy extension
+      run: |
+        TARGET=~/.local/share/gnome-shell/extensions/focus-tracker@olbrasoft.cz
+        mkdir -p $TARGET
+
+        echo "📦 Deploying extension to $TARGET"
+        cp gnome-extension/dist/extension.js $TARGET/
+        cp gnome-extension/metadata.json $TARGET/
+
+        echo "✅ Extension deployed successfully"
+        ls -la $TARGET/
+
+    - name: Verify deployment
+      run: |
+        TARGET=~/.local/share/gnome-shell/extensions/focus-tracker@olbrasoft.cz
+
+        if [ -f "$TARGET/extension.js" ] && [ -f "$TARGET/metadata.json" ]; then
+          echo "✅ Deployment verified"
+          echo "📝 NOTE: Restart GNOME Shell to load updated extension"
+          echo "   - X11: Alt+F2 → type 'r' → Enter"
+          echo "   - Wayland: gnome-extensions disable/enable focus-tracker@olbrasoft.cz"
+        else
+          echo "❌ Deployment verification failed"
+          exit 1
+        fi
