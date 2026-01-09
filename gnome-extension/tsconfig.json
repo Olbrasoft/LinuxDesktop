@@ -1,4 +1,8 @@
 {
+  // NOTE: strict mode is intentionally disabled for GJS/GNOME Shell compatibility.
+  // GJS modules (gi://Gio, gi://GLib) don't have proper TypeScript definitions,
+  // and strict mode would require extensive type casting throughout the code.
+  // We use custom type declarations in gjs.d.ts for basic type safety.
   "compilerOptions": {
     "target": "ES2022",
     "module": "ES2022",
@@ -10,7 +14,7 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "noEmitOnError": false,
+    "noEmitOnError": true,
     "lib": ["ES2022"],
     "noImplicitAny": false,
     "allowJs": true
