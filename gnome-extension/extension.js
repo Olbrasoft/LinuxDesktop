@@ -154,7 +154,7 @@ class DesktopStateService {
     }
 
     GetPointerPosition() {
-        const [x, y, mask] = global.get_pointer();
+        const [x, y] = global.get_pointer();
         log(`[DesktopState] GetPointerPosition: (${x}, ${y})`);
         return GLib.Variant.new('(ii)', [x, y]);
     }
@@ -185,7 +185,6 @@ class DesktopStateService {
     }
 
     _onWorkspacesCountChanged() {
-        const newIndex = this._workspaceManager.get_active_workspace_index();
         const total = this._workspaceManager.n_workspaces;
 
         log(`[DesktopState] Workspaces count changed: ${total}`);

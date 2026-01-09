@@ -40,6 +40,19 @@ gnome-extensions enable focus-tracker@olbrasoft.cz
 | `ActiveWindow` | `s` (string) | Active window title |
 | `ActiveApplication` | `s` (string) | Active application ID (e.g., "kitty.desktop") |
 
+### Methods
+
+**GetWorkspaceApplications(workspaceIndex: int32) → a(sss)**
+- Returns list of applications on the specified workspace
+- Each tuple: (appId, windowTitle, wmClass)
+
+**GetPointerPosition() → (ii)**
+- Returns current mouse pointer position as (X, Y) coordinates
+
+**GetActiveWindowGeometry() → (iiii)**
+- Returns geometry of the currently focused window as (X, Y, Width, Height)
+- Returns (0, 0, 0, 0) if no window is focused
+
 ### Signals
 
 **WorkspaceChanged(newIndex: int32, totalWorkspaces: int32)**

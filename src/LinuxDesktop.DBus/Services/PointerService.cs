@@ -24,7 +24,7 @@ public class PointerService : DBusServiceBase, IPointerService
     /// <summary>
     /// Creates a new PointerService instance with automatic D-Bus connection.
     /// </summary>
-    public static async Task<PointerService> CreateAsync(ILogger<PointerService>? logger = null, CancellationToken ct = default)
+    public static async Task<PointerService> CreateAsync(ILogger<PointerService>? logger = null, CancellationToken cancellationToken = default)
     {
         var connection = new Connection(Address.Session!);
         await connection.ConnectAsync();
@@ -32,7 +32,7 @@ public class PointerService : DBusServiceBase, IPointerService
     }
 
     /// <inheritdoc/>
-    public async Task<(int X, int Y)?> GetPointerPositionAsync(CancellationToken ct = default)
+    public async Task<(int X, int Y)?> GetPointerPositionAsync(CancellationToken cancellationToken = default)
     {
         if (!_serviceAvailable)
             return null;
@@ -57,7 +57,7 @@ public class PointerService : DBusServiceBase, IPointerService
     }
 
     /// <inheritdoc/>
-    public async Task<(int X, int Y, int Width, int Height)?> GetActiveWindowGeometryAsync(CancellationToken ct = default)
+    public async Task<(int X, int Y, int Width, int Height)?> GetActiveWindowGeometryAsync(CancellationToken cancellationToken = default)
     {
         if (!_serviceAvailable)
             return null;
