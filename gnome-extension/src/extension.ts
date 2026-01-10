@@ -190,25 +190,28 @@ class DesktopStateService {
         }
 
         log(`[DesktopState] Returning ${applications.length} applications for workspace ${workspaceIndex}`);
-        return GLib.Variant.new('a(sss)', applications);
+        // Return plain JS array - wrapJSObject handles D-Bus conversion
+        return applications;
     }
 
-    GetPointerPosition(): unknown {
+    GetPointerPosition(): [number, number] {
         const [x, y] = global.get_pointer();
         log(`[DesktopState] GetPointerPosition: (${x}, ${y})`);
-        return GLib.Variant.new('(ii)', [x, y]);
+        // Return plain JS array - wrapJSObject handles D-Bus conversion
+        return [x, y];
     }
 
-    GetActiveWindowGeometry(): unknown {
+    GetActiveWindowGeometry(): [number, number, number, number] {
         const window = this._display.focus_window;
         if (!window) {
             log('[DesktopState] GetActiveWindowGeometry: no focused window');
-            return GLib.Variant.new('(iiii)', [0, 0, 0, 0]);
+            return [0, 0, 0, 0];
         }
 
         const rect = window.get_frame_rect();
         log(`[DesktopState] GetActiveWindowGeometry: (${rect.x}, ${rect.y}, ${rect.width}, ${rect.height})`);
-        return GLib.Variant.new('(iiii)', [rect.x, rect.y, rect.width, rect.height]);
+        // Return plain JS array - wrapJSObject handles D-Bus conversion
+        return [rect.x, rect.y, rect.width, rect.height];
     }
 
     // Signal handlers
