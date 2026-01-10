@@ -113,7 +113,59 @@ public class PointerService : DBusServiceBase, IPointerService
         return (geometry.x, geometry.y, geometry.width, geometry.height);
     }
 
-    // DTOs for JSON deserialization (lowercase property names match JSON)
+    public async Task ShowRecordingOverlayAsync(string text, CancellationToken cancellationToken = default)
+    {
+        if (!_serviceAvailable)
+            return;
+
+        try
+        {
+            var writer = Connection.GetMessageWriter();
+            writer.WriteMethodCallHeader(
+                destination: ServiceName,
+                path: ObjectPath,
+                @interface: Interface,
+                member: "ShowRecordingOverlay",
+                signature: "s");
+            writer.WriteString(text);
+            var message = writer.CreateMessage();
+            
+            await Connection.CallMethodAsync(message);
+            Logger.LogDebug("ShowRecordingOverlay called with text: {Text}", text);
+        }
+        catch (DBusException ex) when (IsServiceUnavailableError(ex))
+        {
+            Logger.LogWarning("GNOME Shell extension not available for overlay: {Error}", ex.ErrorName);
+            _serviceAvailable = false;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to show recording overlay");
+        }
+    }
+
+    public async Task HideRecordingOverlayAsync(CancellationToken cancellationToken = default)
+    {
+        if (!_serviceAvailable)
+            return;
+
+        try
+        {
+            var message = CreateMethodCall("HideRecordingOverlay");
+            await Connection.CallMethodAsync(message);
+            Logger.LogDebug("HideRecordingOverlay called");
+        }
+        catch (DBusException ex) when (IsServiceUnavailableError(ex))
+        {
+            Logger.LogWarning("GNOME Shell extension not available for overlay: {Error}", ex.ErrorName);
+            _serviceAvailable = false;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to hide recording overlay");
+        }
+    }
+
     private record PositionDto(int x, int y);
     private record GeometryDto(int x, int y, int width, int height);
 }
