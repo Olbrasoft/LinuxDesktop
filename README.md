@@ -171,6 +171,81 @@ if (activeWindow.Application != "claude-code")
 }
 ```
 
+## GNOME Shell Extension
+
+This library includes a custom GNOME Shell extension (`focus-tracker@olbrasoft.cz`) that provides D-Bus APIs for desktop context awareness.
+
+### D-Bus Interface
+
+**Bus name:** `org.olbrasoft.Desktop`
+**Object path:** `/org/olbrasoft/Desktop`
+
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| `GetPointerPosition` | `() → (ii)` | Returns cursor (x, y) coordinates |
+| `GetActiveWindowGeometry` | `() → (iiii)` | Returns window (x, y, width, height) |
+| `GetWorkspaceApplications` | `(i) → a(sss)` | Returns apps on workspace (appId, title, wmClass) |
+
+| Signal | Args | Description |
+|--------|------|-------------|
+| `WorkspaceChanged` | `(i, i)` | Emitted on workspace switch (newIndex, total) |
+| `FocusChanged` | `(s, s, s)` | Emitted on focus change (title, appId, wmClass) |
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `CurrentWorkspace` | `i` | Active workspace index (0-based) |
+| `TotalWorkspaces` | `i` | Number of workspaces |
+| `ActiveWindow` | `s` | Focused window title |
+| `ActiveApplication` | `s` | Focused application ID |
+
+### Installation
+
+**Automated (via CI/CD):**
+
+Extension is automatically deployed to `~/.local/share/gnome-shell/extensions/` after push to `main` branch.
+
+**Manual installation:**
+
+```bash
+cd gnome-extension
+npm install
+npm run build
+mkdir -p ~/.local/share/gnome-shell/extensions/focus-tracker@olbrasoft.cz
+cp dist/extension.js metadata.json ~/.local/share/gnome-shell/extensions/focus-tracker@olbrasoft.cz/
+```
+
+### Development
+
+```bash
+cd gnome-extension
+npm install        # Install dependencies
+npm run build      # Build TypeScript → JavaScript
+npm run watch      # Rebuild on changes (development)
+npm run clean      # Remove dist/
+```
+
+### Extension Reload
+
+After deployment, reload the extension:
+
+- **X11:** Alt+F2 → type `r` → Enter
+- **Wayland:** `gnome-extensions disable focus-tracker@olbrasoft.cz && gnome-extensions enable focus-tracker@olbrasoft.cz`
+
+Or log out and back in.
+
+### Verify Extension
+
+```bash
+# Check extension is enabled
+gnome-extensions list --enabled | grep focus-tracker
+
+# Test D-Bus interface
+dbus-send --session --print-reply \
+  --dest=org.olbrasoft.Desktop \
+  /org/olbrasoft/Desktop \
+  org.olbrasoft.Desktop.GetPointerPosition
+```
+
 ## Related Projects
 
 - [VirtualAssistant](https://github.com/Olbrasoft/VirtualAssistant) - Primary consumer of this library
