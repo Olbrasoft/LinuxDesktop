@@ -319,6 +319,125 @@ public async Task NotifyTaskCompleted(string appName, string message)
 - Accessibility part is experimental
 - API may change
 
+## GNOME Extension Development
+
+### Project Structure
+
+```
+gnome-extension/
+├── src/
+│   ├── extension.ts    # TypeScript source (main extension logic)
+│   └── gjs.d.ts        # Type declarations for GJS/GNOME modules
+├── dist/
+│   └── extension.js    # Generated JavaScript (don't edit directly)
+├── metadata.json       # Extension metadata (UUID, version, shell-version)
+├── package.json        # npm configuration
+├── tsconfig.json       # TypeScript compiler configuration
+└── .gitignore          # Excludes node_modules/ and dist/
+```
+
+### Build Commands
+
+```bash
+cd gnome-extension
+npm install        # Install TypeScript and dependencies
+npm run build      # Compile TypeScript → JavaScript
+npm run watch      # Watch mode - rebuild on file changes
+npm run clean      # Remove dist/ directory
+```
+
+### TypeScript Configuration
+
+The extension uses TypeScript with specific settings for GJS compatibility:
+- **Target:** ES2022 (GJS supports modern JavaScript)
+- **Module:** ES2022 (ES modules)
+- **Strict mode:** Disabled (GJS type system differs from standard TypeScript)
+- **Type declarations:** Custom `gjs.d.ts` for GNOME Shell modules
+
+### CI/CD Pipeline
+
+Two separate GitHub Actions workflows:
+
+| Workflow | Trigger | Purpose |
+|----------|---------|---------|
+| `publish-nuget.yml` | Changes in `src/`, `tests/`, `*.sln` | Build/test .NET, publish NuGet |
+| `deploy-extension.yml` | Changes in `gnome-extension/` | Build TypeScript, deploy extension |
+
+**Extension deployment pipeline:**
+1. Push to `main` triggers workflow
+2. `npm ci` installs dependencies
+3. `npm run build` compiles TypeScript
+4. Deployment job (self-hosted runner) copies to `~/.local/share/gnome-shell/extensions/`
+5. Manual GNOME Shell restart required to load new version
+
+### Manual Deployment
+
+```bash
+# Build
+cd gnome-extension
+npm install
+npm run build
+
+# Deploy
+TARGET=~/.local/share/gnome-shell/extensions/focus-tracker@olbrasoft.cz
+mkdir -p $TARGET
+cp dist/extension.js metadata.json $TARGET/
+
+# Reload extension
+# X11: Alt+F2 → 'r' → Enter
+# Wayland: gnome-extensions disable/enable focus-tracker@olbrasoft.cz
+```
+
+### D-Bus Interface
+
+The extension exposes `org.olbrasoft.Desktop` on the session bus:
+
+**Methods:**
+- `GetPointerPosition() → (ii)` - Cursor coordinates
+- `GetActiveWindowGeometry() → (iiii)` - Window bounds (x, y, w, h)
+- `GetWorkspaceApplications(i) → a(sss)` - Apps on workspace
+
+**Signals:**
+- `WorkspaceChanged(i, i)` - Workspace switch notification
+- `FocusChanged(s, s, s)` - Focus change notification
+
+**Properties:**
+- `CurrentWorkspace`, `TotalWorkspaces`, `ActiveWindow`, `ActiveApplication`
+
+### Troubleshooting
+
+**Extension not loading:**
+```bash
+# Check GNOME Shell logs
+journalctl -f -u gnome-shell@x11.service
+
+# Verify extension is recognized
+gnome-extensions list | grep focus-tracker
+
+# Check extension errors
+gnome-extensions show focus-tracker@olbrasoft.cz
+```
+
+**D-Bus not responding:**
+```bash
+# Test D-Bus interface
+dbus-send --session --print-reply \
+  --dest=org.olbrasoft.Desktop \
+  /org/olbrasoft/Desktop \
+  org.olbrasoft.Desktop.GetPointerPosition
+
+# Check if bus name is registered
+dbus-send --session --print-reply \
+  --dest=org.freedesktop.DBus \
+  /org/freedesktop/DBus \
+  org.freedesktop.DBus.ListNames | grep olbrasoft
+```
+
+**TypeScript compilation errors:**
+- Check `gjs.d.ts` for missing type declarations
+- GJS uses `gi://` module imports (not standard npm packages)
+- Some TypeScript features don't work with GJS runtime
+
 ## References
 
 - **Gemini.md** - Analysis of packaging and system dependencies
