@@ -202,7 +202,7 @@ This library includes a custom GNOME Shell extension (`focus-tracker@olbrasoft.c
 
 **Automated (via CI/CD):**
 
-Extension is automatically deployed to `~/.local/share/gnome-shell/extensions/` after push to `main` branch.
+Extension is automatically deployed to `~/.local/share/gnome-shell/extensions/` after a push to the `main` branch.
 
 **Manual installation:**
 

@@ -409,7 +409,7 @@ The extension exposes `org.olbrasoft.Desktop` on the session bus:
 **Extension not loading:**
 ```bash
 # Check GNOME Shell logs
-journalctl -f /usr/bin/gnome-shell
+journalctl -f -u gnome-shell@x11.service
 
 # Verify extension is recognized
 gnome-extensions list | grep focus-tracker
