@@ -51,6 +51,166 @@ declare module 'gi://Shell' {
     export default Shell;
 }
 
+// AT-SPI accessibility interface
+declare module 'gi://Atspi' {
+    namespace Atspi {
+        function init(): number;
+        function get_desktop(index: number): AtspiAccessible | null;
+
+        const CoordType: {
+            SCREEN: number;
+            WINDOW: number;
+            PARENT: number;
+        };
+
+        const StateType: {
+            FOCUSED: number;
+            SELECTED: number;
+            ACTIVE: number;
+            EDITABLE: number;
+        };
+
+        // AT-SPI Roles for identifying widget types
+        const Role: {
+            APPLICATION: number;
+            FRAME: number;
+            DIALOG: number;
+            WINDOW: number;
+            PANEL: number;
+            TEXT: number;
+            TERMINAL: number;
+            ENTRY: number;
+            PASSWORD_TEXT: number;
+            COMBO_BOX: number;
+            SPIN_BUTTON: number;
+            DATE_EDITOR: number;
+        };
+    }
+    export default Atspi;
+}
+
+// AT-SPI Accessible object
+interface AtspiAccessible {
+    get_name(): string;
+    get_role(): number;
+    get_role_name(): string;
+    get_child_count(): number;
+    get_child_at_index(index: number): AtspiAccessible | null;
+    get_parent(): AtspiAccessible | null;
+    get_state_set(): AtspiStateSet | null;
+    get_text_iface(): AtspiText | null;
+    get_component_iface(): AtspiComponent | null;
+}
+
+// AT-SPI StateSet
+interface AtspiStateSet {
+    contains(state: number): boolean;
+}
+
+// AT-SPI Text interface
+interface AtspiText {
+    get_caret_offset(): number;
+    get_character_count(): number;
+    get_text(start: number, end: number): string;
+    get_character_extents(offset: number, coordType: number): AtspiRect;
+}
+
+// AT-SPI Component interface
+interface AtspiComponent {
+    get_extents(coordType: number): AtspiRect;
+    get_position(coordType: number): AtspiPoint;
+    get_size(): AtspiPoint;
+}
+
+// AT-SPI Rect (returned by get_character_extents)
+interface AtspiRect {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+}
+
+// AT-SPI Point
+interface AtspiPoint {
+    x: number;
+    y: number;
+}
+
+// AT-SPI Caret Event (from FocusCaretTracker)
+interface AtspiCaretEvent {
+    source: AtspiAccessible | null;
+    detail1: number;
+    detail2: number;
+}
+
+// St (Shell Toolkit) for UI widgets
+declare module 'gi://St' {
+    namespace St {
+        class Widget {
+            x: number;
+            y: number;
+            visible: boolean;
+            destroy(): void;
+            add_style_class_name(className: string): void;
+            set_style(css: string): void;
+        }
+        class Label extends Widget {
+            text: string;
+            constructor(params?: { text?: string; style_class?: string });
+        }
+        class BoxLayout extends Widget {
+            constructor(params?: { style_class?: string; vertical?: boolean });
+            add_child(child: Widget): void;
+        }
+        class Bin extends Widget {
+            constructor(params?: { style_class?: string });
+            set_child(child: Widget | null): void;
+        }
+        const ThemeContext: {
+            get_for_stage(stage: unknown): { scale_factor: number };
+        };
+    }
+    export default St;
+}
+
+// GNOME Shell FocusCaretTracker module
+// Based on: https://gitlab.gnome.org/GNOME/gnome-shell/-/blob/main/js/ui/focusCaretTracker.js
+declare module 'resource:///org/gnome/shell/ui/focusCaretTracker.js' {
+    export class FocusCaretTracker {
+        constructor();
+        connect(signal: string, callback: (tracker: unknown, event: AtspiCaretEvent) => void): number;
+        disconnect(id: number): void;
+        // Focus events (object:state-changed:focused, object:state-changed:selected)
+        registerFocusListener(): void;
+        deregisterFocusListener(): void;
+        // Caret events (object:text-caret-moved) - USE THIS FOR CARET POSITION
+        registerCaretListener(): void;
+        deregisterCaretListener(): void;
+    }
+}
+
+// FocusCaretTracker instance type
+interface FocusCaretTrackerInstance {
+    connect(signal: string, callback: (tracker: unknown, event: AtspiCaretEvent) => void): number;
+    disconnect(id: number): void;
+    registerFocusListener(): void;
+    deregisterFocusListener(): void;
+    registerCaretListener(): void;
+    deregisterCaretListener(): void;
+}
+
+// Main module for GNOME Shell UI
+declare module 'resource:///org/gnome/shell/ui/main.js' {
+    export const uiGroup: {
+        add_child(actor: unknown): void;
+        remove_child(actor: unknown): void;
+    };
+    export const layoutManager: {
+        monitors: Array<{ x: number; y: number; width: number; height: number }>;
+        primaryIndex: number;
+    };
+}
+
 // Shell types exported globally for use in extension
 interface ShellWindowTracker {
     focus_app: ShellApplication | null;
@@ -74,6 +234,7 @@ declare module 'resource:///org/gnome/shell/extensions/extension.js' {
 declare const global: {
     workspace_manager: WorkspaceManager;
     display: Display;
+    stage: unknown;
     get_pointer(): [number, number, unknown];
 };
 
@@ -93,6 +254,7 @@ interface Window {
     get_title(): string | null;
     get_wm_class(): string | null;
     get_frame_rect(): Rectangle;
+    get_client_content_rect?(): Rectangle;
     skip_taskbar: boolean;
 }
 

@@ -385,8 +385,31 @@ cp dist/extension.js metadata.json $TARGET/
 
 # Reload extension
 # X11: Alt+F2 → 'r' → Enter
-# Wayland: gnome-extensions disable/enable focus-tracker@olbrasoft.cz
+# Wayland: SEE CRITICAL WARNING BELOW!
 ```
+
+### ⚠️ CRITICAL: Wayland Extension Reload
+
+**On Wayland, `gnome-extensions disable/enable` does NOT fully reload the extension code!**
+
+The JavaScript is cached in the GNOME Shell process. To apply changes to extension code on Wayland:
+
+1. **Log out and log back in** (restart GNOME session)
+2. Or restart the entire session: `gnome-session-quit --logout`
+
+**This is a Wayland limitation** - unlike X11 where you can restart GNOME Shell with `Alt+F2 → r`, Wayland does not support hot-reloading extensions.
+
+**Symptoms when you forget this:**
+- Old code keeps running despite deploying new version
+- Logs show old initialization messages
+- New features/fixes don't appear
+
+**Workflow for extension development on Wayland:**
+1. Make changes to `extension.ts`
+2. `npm run build`
+3. Deploy to `~/.local/share/gnome-shell/extensions/`
+4. **Log out and log back in**
+5. Test the changes
 
 ### D-Bus Interface
 

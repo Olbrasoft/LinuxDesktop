@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Olbrasoft.LinuxDesktop.Core.Services;
 using Tmds.DBus.Protocol;
@@ -40,7 +41,7 @@ public class PointerService : DBusServiceBase, IPointerService
         try
         {
             var message = CreateMethodCall("GetPointerPosition");
-            var result = await Connection.CallMethodAsync(message, ReadInt32Tuple, this);
+            var result = await Connection.CallMethodAsync(message, ReadPositionJson, this);
             return result;
         }
         catch (DBusException ex) when (IsServiceUnavailableError(ex))
@@ -65,7 +66,7 @@ public class PointerService : DBusServiceBase, IPointerService
         try
         {
             var message = CreateMethodCall("GetActiveWindowGeometry");
-            var result = await Connection.CallMethodAsync(message, ReadInt32QuadTuple, this);
+            var result = await Connection.CallMethodAsync(message, ReadGeometryJson, this);
 
             // Extension returns (0, 0, 0, 0) when no window is focused
             if (result is { X: 0, Y: 0, Width: 0, Height: 0 })
@@ -94,23 +95,77 @@ public class PointerService : DBusServiceBase, IPointerService
             "org.freedesktop.DBus.Error.NoReply";
     }
 
-    private static (int X, int Y) ReadInt32Tuple(Message message, object? state)
+    private static (int X, int Y) ReadPositionJson(Message message, object? state)
     {
         var reader = message.GetBodyReader();
-        reader.AlignStruct();
-        var x = reader.ReadInt32();
-        var y = reader.ReadInt32();
-        return (x, y);
+        var json = reader.ReadString();
+        var position = JsonSerializer.Deserialize<PositionDto>(json)
+            ?? throw new InvalidOperationException("Failed to parse position JSON");
+        return (position.x, position.y);
     }
 
-    private static (int X, int Y, int Width, int Height) ReadInt32QuadTuple(Message message, object? state)
+    private static (int X, int Y, int Width, int Height) ReadGeometryJson(Message message, object? state)
     {
         var reader = message.GetBodyReader();
-        reader.AlignStruct();
-        var x = reader.ReadInt32();
-        var y = reader.ReadInt32();
-        var width = reader.ReadInt32();
-        var height = reader.ReadInt32();
-        return (x, y, width, height);
+        var json = reader.ReadString();
+        var geometry = JsonSerializer.Deserialize<GeometryDto>(json)
+            ?? throw new InvalidOperationException("Failed to parse geometry JSON");
+        return (geometry.x, geometry.y, geometry.width, geometry.height);
     }
+
+    public async Task ShowRecordingOverlayAsync(string text, CancellationToken cancellationToken = default)
+    {
+        if (!_serviceAvailable)
+            return;
+
+        try
+        {
+            var writer = Connection.GetMessageWriter();
+            writer.WriteMethodCallHeader(
+                destination: ServiceName,
+                path: ObjectPath,
+                @interface: Interface,
+                member: "ShowRecordingOverlay",
+                signature: "s");
+            writer.WriteString(text);
+            var message = writer.CreateMessage();
+            
+            await Connection.CallMethodAsync(message);
+            Logger.LogDebug("ShowRecordingOverlay called with text: {Text}", text);
+        }
+        catch (DBusException ex) when (IsServiceUnavailableError(ex))
+        {
+            Logger.LogWarning("GNOME Shell extension not available for overlay: {Error}", ex.ErrorName);
+            _serviceAvailable = false;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to show recording overlay");
+        }
+    }
+
+    public async Task HideRecordingOverlayAsync(CancellationToken cancellationToken = default)
+    {
+        if (!_serviceAvailable)
+            return;
+
+        try
+        {
+            var message = CreateMethodCall("HideRecordingOverlay");
+            await Connection.CallMethodAsync(message);
+            Logger.LogDebug("HideRecordingOverlay called");
+        }
+        catch (DBusException ex) when (IsServiceUnavailableError(ex))
+        {
+            Logger.LogWarning("GNOME Shell extension not available for overlay: {Error}", ex.ErrorName);
+            _serviceAvailable = false;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to hide recording overlay");
+        }
+    }
+
+    private record PositionDto(int x, int y);
+    private record GeometryDto(int x, int y, int width, int height);
 }
