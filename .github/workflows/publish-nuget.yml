@@ -1,11 +1,23 @@
-name: CI/CD
+name: NuGet CI/CD
 
 on:
   push:
     branches: [main]
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - '*.sln'
+      - 'Directory.Build.props'
+      - '.github/workflows/publish-nuget.yml'
     tags: ['v*']
   pull_request:
     branches: [main]
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - '*.sln'
+      - 'Directory.Build.props'
+      - '.github/workflows/publish-nuget.yml'
 
 jobs:
   build:
