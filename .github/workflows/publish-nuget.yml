@@ -16,6 +16,8 @@ on:
       - 'src/**'
       - 'tests/**'
       - '*.sln'
+      - 'Directory.Build.props'
+      - '.github/workflows/publish-nuget.yml'
 
 jobs:
   build:

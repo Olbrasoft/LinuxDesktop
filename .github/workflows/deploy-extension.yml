@@ -10,6 +10,7 @@ on:
     branches: [main]
     paths:
       - 'gnome-extension/**'
+      - '.github/workflows/deploy-extension.yml'
 
 jobs:
   build:
