@@ -116,6 +116,11 @@ class DesktopStateService {
     private _focusCaretTracker: FocusCaretTrackerInstance | null = null;
     private _caretMovedSignalId: number | null = null;
 
+    // Throttling for caret events to prevent UI blocking
+    // AT-SPI can fire many events during text selection
+    private _lastCaretUpdateTime: number = 0;
+    private _caretUpdateThrottleMs: number = 50;  // Max 20 updates per second
+
     constructor() {
         this._workspaceManager = global.workspace_manager;
         this._display = global.display;
@@ -213,6 +218,13 @@ class DesktopStateService {
      */
     private _onCaretMoved(_tracker: unknown, event: AtspiCaretEvent): void {
         try {
+            // Throttle updates to prevent UI blocking during rapid text selection
+            const now = GLib.get_monotonic_time() / 1000;  // Convert to milliseconds
+            if (now - this._lastCaretUpdateTime < this._caretUpdateThrottleMs) {
+                return;  // Skip this update, too soon after previous one
+            }
+            this._lastCaretUpdateTime = now;
+
             if (!event.source) {
                 return;
             }
@@ -231,8 +243,7 @@ class DesktopStateService {
 
             // Ignore if extents are 0x0 (no valid position)
             if (windowExtents.width === 0 && windowExtents.height === 0) {
-                log(`[DesktopState] Caret extents are 0x0, ignoring`);
-                return;
+                return;  // Silently ignore - this happens often
             }
 
             // Convert WINDOW coordinates to SCREEN coordinates
@@ -273,54 +284,27 @@ class DesktopStateService {
         accessible: AtspiAccessible,
         extents: { x: number; y: number; width: number; height: number }
     ): { x: number; y: number; width: number; height: number } | null {
-        // Validate the accessible is from a focused window
-        // (Skip validation for gnome-shell's own events)
+        // Check if this is gnome-shell's own event (already in screen coordinates)
         try {
-            let app: AtspiAccessible | null = null;
-            let parentWindow: AtspiAccessible | null = null;
             let iter: AtspiAccessible | null = accessible;
-
-            const toplevelWindowTypes = new Set([
-                Atspi.Role.FRAME,
-                Atspi.Role.DIALOG,
-                Atspi.Role.WINDOW,
-            ]);
-
             while (iter) {
                 const role = iter.get_role();
                 if (role === Atspi.Role.APPLICATION) {
-                    app = iter;
+                    if (iter.get_name() === 'gnome-shell') {
+                        return extents;
+                    }
                     break;
-                } else if (toplevelWindowTypes.has(role)) {
-                    parentWindow = iter;
                 }
                 iter = iter.get_parent();
             }
-
-            // Skip our own events (already in screen coordinates)
-            if (app && app.get_name() === 'gnome-shell') {
-                return extents;
-            }
-
-            // Verify the window is active and accessible is focused
-            if (parentWindow) {
-                const stateSet = parentWindow.get_state_set();
-                const accessibleStateSet = accessible.get_state_set();
-                if (stateSet && accessibleStateSet) {
-                    const windowActive = stateSet.contains(Atspi.StateType.ACTIVE);
-                    const accessibleFocused = accessibleStateSet.contains(Atspi.StateType.FOCUSED);
-                    if (!windowActive || !accessibleFocused) {
-                        return null;
-                    }
-                }
-            }
         } catch (e) {
-            log(`[DesktopState] Failed to validate parent window: ${(e as Error).message}`);
+            // Ignore errors during app name check
         }
 
         // Get the focused window from Mutter
         const focusWindow = this._display.focus_window;
         if (!focusWindow) {
+            log('[DesktopState] No focused window, cannot convert coordinates');
             return null;
         }
 
@@ -343,7 +327,7 @@ class DesktopStateService {
         return screenExtents;
     }
 
-    // Clear cursor position when focus changes (user might switch to non-text app)
+    // Track focus changes but preserve cursor position for transient windows
     private _onFocusChanged(): void {
         const window = this._display.focus_window;
         const app = this._tracker.focus_app;
@@ -354,8 +338,21 @@ class DesktopStateService {
 
         log(`[DesktopState] Focus changed: ${windowTitle} (${appId}) [${wmClass}]`);
 
-        // Clear cursor position on focus change - will be updated by caret-moved event
-        this._cursorRect = null;
+        // Don't clear cursor position for transient/clipboard windows
+        // These are temporary focus changes that shouldn't invalidate the cursor position
+        // wl-clipboard and similar tools briefly steal focus during paste operations
+        const isTransientWindow =
+            windowTitle === 'wl-clipboard' ||
+            wmClass === '' ||  // Many transient windows have no WM class
+            (window && window.skip_taskbar);
+
+        if (!isTransientWindow) {
+            // Clear cursor position on real focus change - will be updated by caret-moved event
+            this._cursorRect = null;
+            log('[DesktopState] Cursor position cleared (real focus change)');
+        } else {
+            log('[DesktopState] Cursor position preserved (transient window)');
+        }
 
         if (this._impl) {
             this._impl.emit_signal('FocusChanged', GLib.Variant.new('(sss)', [windowTitle, appId, wmClass]));

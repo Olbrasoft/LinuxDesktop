@@ -38,6 +38,8 @@ declare module 'gi://GLib' {
             new_int32(value: number): unknown;
             new_string(value: string): unknown;
         };
+        // Returns current monotonic time in microseconds
+        function get_monotonic_time(): number;
     }
     export default GLib;
 }
