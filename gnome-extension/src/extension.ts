@@ -45,11 +45,11 @@ const INTERFACE_XML = `
     </method>
 
     <method name="GetPointerPosition">
-      <arg type="(ii)" direction="out" name="position"/>
+      <arg type="s" direction="out" name="position"/>
     </method>
 
     <method name="GetActiveWindowGeometry">
-      <arg type="(iiii)" direction="out" name="geometry"/>
+      <arg type="s" direction="out" name="geometry"/>
     </method>
 
     <!-- Signals -->
@@ -194,24 +194,24 @@ class DesktopStateService {
         return applications;
     }
 
-    GetPointerPosition(): [number, number] {
+    GetPointerPosition(): string {
         const [x, y] = global.get_pointer();
         log(`[DesktopState] GetPointerPosition: (${x}, ${y})`);
-        // Return plain JS array - wrapJSObject handles D-Bus conversion
-        return [x, y];
+        // Return JSON string - D-Bus tuple types don't work reliably with wrapJSObject
+        return JSON.stringify({ x: Math.floor(x), y: Math.floor(y) });
     }
 
-    GetActiveWindowGeometry(): [number, number, number, number] {
+    GetActiveWindowGeometry(): string {
         const window = this._display.focus_window;
         if (!window) {
             log('[DesktopState] GetActiveWindowGeometry: no focused window');
-            return [0, 0, 0, 0];
+            return JSON.stringify({ x: 0, y: 0, width: 0, height: 0 });
         }
 
         const rect = window.get_frame_rect();
         log(`[DesktopState] GetActiveWindowGeometry: (${rect.x}, ${rect.y}, ${rect.width}, ${rect.height})`);
-        // Return plain JS array - wrapJSObject handles D-Bus conversion
-        return [rect.x, rect.y, rect.width, rect.height];
+        // Return JSON string
+        return JSON.stringify({ x: rect.x, y: rect.y, width: rect.width, height: rect.height });
     }
 
     // Signal handlers
