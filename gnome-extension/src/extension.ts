@@ -332,12 +332,12 @@ class DesktopStateService {
         // Get scale factor for HiDPI displays
         const scaleFactor = St.ThemeContext.get_for_stage(global.stage).scale_factor;
 
-        // Convert to screen coordinates
+        // Convert to screen coordinates (use integer pixel coordinates)
         const screenExtents = {
-            x: windowRect.x + (scaleFactor * extents.x),
-            y: windowRect.y + (scaleFactor * extents.y),
-            width: scaleFactor * extents.width,
-            height: scaleFactor * extents.height,
+            x: Math.floor(windowRect.x + (scaleFactor * extents.x)),
+            y: Math.floor(windowRect.y + (scaleFactor * extents.y)),
+            width: Math.floor(scaleFactor * extents.width),
+            height: Math.floor(scaleFactor * extents.height),
         };
 
         return screenExtents;
@@ -489,9 +489,24 @@ class DesktopStateService {
             const overlayHeight = 40;
             const verticalOffset = 20;
 
-            // Position overlay above the caret/cursor
-            this._overlayWidget.x = Math.floor(position.x) - overlayWidth / 2;
-            this._overlayWidget.y = Math.floor(position.y) - overlayHeight - verticalOffset;
+            // Calculate initial position above the caret/cursor
+            let x = Math.floor(position.x) - overlayWidth / 2;
+            let y = Math.floor(position.y) - overlayHeight - verticalOffset;
+
+            // Clamp overlay position to screen bounds
+            const monitor = Main.layoutManager.monitors[Main.layoutManager.primaryIndex];
+            if (monitor) {
+                const minX = monitor.x;
+                const maxX = monitor.x + monitor.width - overlayWidth;
+                const minY = monitor.y;
+                const maxY = monitor.y + monitor.height - overlayHeight;
+
+                x = Math.min(Math.max(x, minX), maxX);
+                y = Math.min(Math.max(y, minY), maxY);
+            }
+
+            this._overlayWidget.x = x;
+            this._overlayWidget.y = y;
             this._overlayWidget.visible = true;
         }
     }
